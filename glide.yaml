@@ -1,0 +1,3 @@
+package: github.com/zchee/appleopensource
+import:
+- package: github.com/PuerkitoBio/goquery

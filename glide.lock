@@ -1,6 +1,14 @@
-hash: 3715d80b6c6a9a9d150a9ff8ca3ace17abba0eb4ce6b66746b13b76a4553ecb7
-updated: 2016-11-21T20:13:11.665004577+09:00
+hash: fb30096547957cb4325af688270200aaebf49f5f7311a4357a8ae263a5cf95ef
+updated: 2016-11-25T17:18:09.680464793+09:00
 imports:
+- name: github.com/alecthomas/kingpin
+  version: e64c31bcea9c96687d383aff82c3b844264f84ee
+- name: github.com/alecthomas/template
+  version: a0175ee3bccc567396460bf5acd36800cb10c49c
+  subpackages:
+  - parse
+- name: github.com/alecthomas/units
+  version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
 - name: github.com/andybalholm/cascadia
   version: 65919c611220063037b1db8eb334acaf17a6d8ea
 - name: github.com/PuerkitoBio/goquery

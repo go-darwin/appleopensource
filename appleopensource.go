@@ -18,7 +18,7 @@ const (
 	// ModeTarballs tarballs mode.
 	ModeTarballs ListMode = "tarballs"
 	// ModeSource source mode.
-	ModeSource ListMode = "source"
+	ModeSource = "source"
 )
 
 // ListTarballs return the lists of opensource.apple.com/tarballs

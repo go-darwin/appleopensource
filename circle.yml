@@ -19,12 +19,13 @@ dependencies:
         cp -rp /home/ubuntu/.go/${GOLANG_VERSION} ~/go
       fi
     - go version
+    - go get -u github.com/golang/lint/golint
 
 test:
   override:
     - go test -v -race -coverprofile=coverage.txt -covermode=atomic $(go list ./... | grep -v vendor)
   post:
     - bash <(curl -s https://codecov.io/bash)
-    - test -z "$(gofmt -e -s -l -w .                      | tee /dev/stderr)"
+    - test -z "$(gofmt -e -s -l -w $(find . -not -iwholename '*vendor*' -and -name '*.go' -print) | tee /dev/stderr)"
     - test -z "$(golint $(go list ./... | grep -v vendor) | tee /dev/stderr)"
     - go vet $(go list ./... | grep -v vendor)

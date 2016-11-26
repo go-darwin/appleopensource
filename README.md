@@ -60,7 +60,6 @@ appleopensource and gaos are released under the [BSD 3-Clause License](https://o
 [Apple Open Source][opensource.apple.com] package resources is under the [Apple Public Source License Version 2.0](http://www.opensource.apple.com/apsl/).
 
 
-[circleci-badge]: https://img.shields.io/badge/godoc-reference-4F73B3.svg?style=flat-square
 [circleci-badge]: https://img.shields.io/circleci/project/github/zchee/appleopensource.svg?style=flat-square
 [circleci]: https://circleci.com/gh/zchee/appleopensource
 [codecov-badge]: https://img.shields.io/codecov/c/github/zchee/appleopensource.svg?style=flat-square

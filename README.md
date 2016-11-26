@@ -17,16 +17,16 @@ An [opensource.apple.com][opensource.apple.com] resource management package for 
 
 ## Install
 
-Installing `appleopensource` package only:
-
-```sh
-go get -u -v github.com/zchee/appleopensource
-```
-
 Installing `gaos` command:
 
 ```sh
 go get -u -v github.com/zchee/appleopensource/cmd/gaos
+```
+
+Installing `appleopensource` package only:
+
+```sh
+go get -u -v github.com/zchee/appleopensource
 ```
 
 

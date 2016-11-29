@@ -4,25 +4,28 @@
 
 package main
 
-import "github.com/alecthomas/kingpin"
+import cli "github.com/alecthomas/kingpin"
 
 var (
-	cli   = kingpin.New("gaos", "An opensource.apple.com resource management cli tool.")
+	Version = "0.0.1"
+
 	debug = cli.Flag("debug", "Enable debug mode.").Bool()
 
-	cmdList     = cli.Command("list", "List all package available to opensource.apple.com.")
-	cmdVersions = cli.Command("versions", "List all <package> versions available to opensource.apple.com.")
-)
-
-var (
-	Version   = "0.0.1"
-	GitCommit = "HEAD"
+	cmdList     = cli.Command("list", "List all project available to opensource.apple.com.")
+	cmdVersions = cli.Command("versions", "List all versions of the <project> available to opensource.apple.com.")
+	cmdRelease  = cli.Command("release", "List all projects included to the releases available to opensource.apple.com.")
 )
 
 func init() {
-	cli.Version(Version)
+	cli.CommandLine.Name = "gaos"
+	cli.CommandLine.Help = "An opensource.apple.com resource management tool."
+	cli.CommandLine.HelpFlag.Short('h')
+	cli.CommandLine.UsageTemplate(cli.CompactUsageTemplate)
+
+	cmdList.Action(runList)
+	cmdVersions.Action(runVersions)
 }
 
 func main() {
-	kingpin.Parse()
+	cli.Parse()
 }

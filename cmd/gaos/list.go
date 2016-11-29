@@ -5,29 +5,67 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"path/filepath"
 
-	"github.com/alecthomas/kingpin"
+	cli "github.com/alecthomas/kingpin"
 	"github.com/zchee/appleopensource"
 )
 
 var (
-	listArg = cmdList.Arg("mode", "resource type. (default: tarballs) [tarballs source]").Default("tarballs").String()
+	listTarballs = cmdList.Flag("tarballs", "List the tarballs resources.").Short('t').Bool()
+	listSource   = cmdList.Flag("source", "List the source resources.").Short('s').Bool()
 )
 
-func init() {
-	cmdList.Action(runList)
-}
-
-func runList(ctx *kingpin.ParseContext) error {
-	mode := appleopensource.ListMode(*listArg)
-	list, err := appleopensource.ListPackage(mode)
-	if err != nil {
-		return err
+// index return the opensource.apple.com project index, and caches the HTML DOM tree into cacheDir.
+func index(typ string) ([]byte, error) {
+	cachedir := cacheDir()
+	fname := filepath.Join(cachedir, fmt.Sprintf("%s.html", typ))
+	if isExist(fname) {
+		return ioutil.ReadFile(fname)
 	}
 
-	fmt.Println(list)
-	fmt.Println(len(list))
+	if err := os.MkdirAll(cachedir, 0775); err != nil {
+		return nil, err
+	}
+
+	buf, err := appleopensource.IndexProject(typ)
+	if err != nil {
+		return nil, err
+	}
+	if err := ioutil.WriteFile(fname, buf, 0664); err != nil {
+		return nil, err
+	}
+
+	return buf, nil
+}
+
+func runList(ctx *cli.ParseContext) error {
+	mode := appleopensource.TypeTarballs
+	switch {
+	case *listSource:
+		mode = appleopensource.TypeSource
+	case *listTarballs:
+		// nothing to do
+	}
+
+	index, err := index(mode.String())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	list, err := appleopensource.ListProject(index)
+
+	var buf bytes.Buffer
+	for _, b := range list {
+		buf.WriteString(b.Name + "\n")
+	}
+
+	fmt.Print(buf.String())
 
 	return nil
 }

@@ -2,3 +2,4 @@ package: github.com/zchee/appleopensource
 import:
 - package: github.com/PuerkitoBio/goquery
 - package: github.com/alecthomas/kingpin
+- package: github.com/blang/semver

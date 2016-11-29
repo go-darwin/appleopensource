@@ -1,5 +1,5 @@
-hash: fb30096547957cb4325af688270200aaebf49f5f7311a4357a8ae263a5cf95ef
-updated: 2016-11-25T17:18:09.680464793+09:00
+hash: 88bef2639d58684c996a3ff29d8f86dffe9f9565891e9eb3e872334d27ae9e3d
+updated: 2016-11-29T09:45:30.981341091+09:00
 imports:
 - name: github.com/alecthomas/kingpin
   version: e64c31bcea9c96687d383aff82c3b844264f84ee
@@ -11,6 +11,10 @@ imports:
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
 - name: github.com/andybalholm/cascadia
   version: 65919c611220063037b1db8eb334acaf17a6d8ea
+- name: github.com/blang/semver
+  version: 99c25b2dbb9b8a6389fab5fb785ee7428a7a6ab8
+- name: github.com/pkg/errors
+  version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
 - name: github.com/PuerkitoBio/goquery
   version: 56a198aba89cdf7a612e6c762eff9d788b9f2dae
 - name: golang.org/x/net

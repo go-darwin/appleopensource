@@ -57,6 +57,25 @@ func (p *Project) Source() string {
 	return fmt.Sprintf("%s/%s/%s/%s-%s/", rootURL, TypeSource, p.Name, p.Name, p.Version)
 }
 
+func index(baseURL *url.URL) ([]byte, error) {
+	dom, err := goquery.NewDocument(baseURL.String())
+	if err != nil {
+		return nil, err
+	}
+
+	table, err := dom.Find("body #content > div.column").Html()
+	if err != nil {
+		return nil, err
+	}
+
+	// 6 is 404 not found
+	if len(strings.TrimSpace(table)) == 0 {
+		return nil, fmt.Errorf("Not found %s page", baseURL.String())
+	}
+
+	return bytes.TrimSpace([]byte(table)), nil
+}
+
 // IndexProject return the index of opensource.apple.com/<typ> HTML DOM tree.
 func IndexProject(typ string) ([]byte, error) {
 	var rtype string
@@ -76,17 +95,7 @@ func IndexProject(typ string) ([]byte, error) {
 	}
 	baseURL.Path = path.Join(baseURL.Path, fmt.Sprint(rtype))
 
-	dom, err := goquery.NewDocument(baseURL.String())
-	if err != nil {
-		return nil, err
-	}
-
-	table, err := dom.Find("body #content > div.column").Html()
-	if err != nil {
-		return nil, err
-	}
-
-	return bytes.TrimSpace([]byte(table)), nil
+	return index(baseURL)
 }
 
 // ListProject parses the buf HTML DOM tree, and return the project list.
@@ -100,13 +109,13 @@ func ListProject(buf []byte) ([]Project, error) {
 	projects := dom.Find("table > tbody > tr")
 
 	// Subtracts the number of <th>, <hr> and "Parent Directory"
-	list := make([]Project, projects.Length())
+	list := make([]Project, projects.Length()-4)
 
 	projects.Each(func(i int, s *goquery.Selection) {
 		if name := s.Find("td > a").Text(); name != "" && name[len(name)-1] == byte('/') {
 			// Subtracts the count of header's <th> and <hr>, and slice start count is 0.
 			// Also trims the "/" at the end of the name.
-			list[i].Name = name[:len(name)-1]
+			list[i-3].Name = name[:len(name)-1]
 		}
 	})
 
@@ -132,22 +141,7 @@ func IndexVersion(project, typ string) ([]byte, error) {
 	}
 	baseURL.Path = path.Join(baseURL.Path, fmt.Sprint(rtype), project)
 
-	dom, err := goquery.NewDocument(baseURL.String())
-	if err != nil {
-		return nil, err
-	}
-
-	table, err := dom.Find("body #content > div.column").Html()
-	if err != nil {
-		return nil, err
-	}
-
-	// 6 is 404 not found
-	if len(table) <= 6 {
-		return nil, fmt.Errorf("Not found %s project", project)
-	}
-
-	return bytes.TrimSpace([]byte(table)), nil
+	return index(baseURL)
 }
 
 var zero = ".0.0"
@@ -234,22 +228,7 @@ func IndexRelease(platform Platform, version string) ([]byte, error) {
 	}
 	baseURL.Path = path.Join(baseURL.Path, "release", fmt.Sprintf("%s-%s.html", prefix, strings.Replace(version, ".", "", -1)))
 
-	dom, err := goquery.NewDocument(baseURL.String())
-	if err != nil {
-		return nil, err
-	}
-
-	table, err := dom.Find("body #content > div.column").Html()
-	if err != nil {
-		return nil, err
-	}
-
-	// 6 is 404 not found
-	if len(table) <= 6 {
-		return nil, fmt.Errorf("Not found %s %s release", platform, version)
-	}
-
-	return bytes.TrimSpace([]byte(table)), nil
+	return index(baseURL)
 }
 
 const ComingSoon = "(coming soon!)"

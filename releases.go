@@ -7,7 +7,8 @@ package appleopensource
 type Platform int
 
 const (
-	MacOS Platform = iota
+	Unknown Platform = iota
+	MacOS
 	Xcode
 	IOS
 	Server

@@ -9,6 +9,11 @@ func TestPlatform_String(t *testing.T) {
 		want string
 	}{
 		{
+			name: "Unknown",
+			p:    Unknown,
+			want: "",
+		},
+		{
 			name: "macos",
 			p:    MacOS,
 			want: "macos",

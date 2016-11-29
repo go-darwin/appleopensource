@@ -7,10 +7,13 @@ build: ## Build gaos
 	go build -v ./cmd/gaos
 
 test: ## Test appleopensource package
-	go test -v $(shell $(VENODR_CMD) novendor)
+	go test -v -race $(shell $(VENODR_CMD) novendor)
 
 vendor-list: ## List vendor packages
 	$(VENODR_CMD) list
 
 help: ## Print this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[33m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+clean:
+	$(RM) ./gaos

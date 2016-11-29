@@ -19,13 +19,14 @@ import (
 var (
 	listTarballs = cmdList.Flag("tarballs", "List the tarballs resources.").Short('t').Bool()
 	listSource   = cmdList.Flag("source", "List the source resources.").Short('s').Bool()
+	listNoCache  = cmdList.Flag("no-cache", "Disable the cache.").Short('n').Bool()
 )
 
 // index return the opensource.apple.com project index, and caches the HTML DOM tree into cacheDir.
 func index(typ string) ([]byte, error) {
 	cachedir := cacheDir()
 	fname := filepath.Join(cachedir, fmt.Sprintf("%s.html", typ))
-	if isExist(fname) {
+	if isExist(fname) && !*listNoCache {
 		return ioutil.ReadFile(fname)
 	}
 

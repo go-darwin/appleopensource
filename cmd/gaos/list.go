@@ -64,8 +64,10 @@ func runList(ctx *cli.ParseContext) error {
 	for _, b := range list {
 		buf.WriteString(b.Name + "\n")
 	}
+	// TODO(zchee): trim last new line
+	buf.Truncate(buf.Len() - 1)
 
-	fmt.Print(buf.String())
+	fmt.Printf(buf.String())
 
 	return nil
 }

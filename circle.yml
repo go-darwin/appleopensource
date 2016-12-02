@@ -3,7 +3,7 @@ machine:
     TERM: xterm-256color
     GOROOT: "/home/ubuntu/go"
     PATH: "/home/ubuntu/go/bin:$PATH"
-    GOLANG_VERSION: 1.7.3
+    GOLANG_VERSION: 1.8beta1
 
 dependencies:
   cache_directories:

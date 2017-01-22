@@ -144,8 +144,6 @@ func IndexVersion(project, typ string) ([]byte, error) {
 	return index(baseURL)
 }
 
-var zero = ".0.0"
-
 // ListVersions parses the buf HTML DOM tree, and return the available versions of the project.
 func ListVersions(buf []byte) ([]string, error) {
 	r := bytes.NewReader(buf)
@@ -185,10 +183,20 @@ func ListVersions(buf []byte) ([]string, error) {
 
 	list := make([]string, len(vlist))
 	for i, v := range vlist {
-		// Try trims the ".0.0"
-		list[i] = strings.TrimSuffix(v.String(), zero)
+		// Try trims the ".0" suffix
+		list[i] = trimZeros(v.String())
 	}
 	return list, nil
+}
+
+func trimZeros(version string) string {
+	for {
+		if strings.HasSuffix(version, ".0") {
+			version = version[:len(version)-2]
+			continue
+		}
+		return version
+	}
 }
 
 // IndexRelease return the index of all releases of the platform.

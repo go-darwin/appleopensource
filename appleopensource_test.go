@@ -224,8 +224,9 @@ func TestIndexVersion(t *testing.T) {
 				t.Errorf("IndexVersion(%v, %v) error = %v, wantErr %v", tt.args.project, tt.args.typ, err, tt.wantErr)
 				return
 			}
+			got = append(got, byte('\n'))
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("IndexVersion(%v, %v) = %v, want %v", tt.args.project, tt.args.typ, got, tt.want)
+				t.Errorf("IndexVersion(%v, %v) = %v, want %v", tt.args.project, tt.args.typ, string(got), string(tt.want))
 			}
 		})
 	}

@@ -1,0 +1,69 @@
+{
+    "memo": "3cf8574cb8f2499c2eb1d7241a04f8bdec554cc9edb84bd7673e75d6952dff44",
+    "projects": [
+        {
+            "name": "github.com/PuerkitoBio/goquery",
+            "version": "v1.0.2",
+            "revision": "3cb3b8656883c2cc3deb9c643d93ea6e5157e425",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/alecthomas/kingpin",
+            "branch": "master",
+            "revision": "7b7c3e10c746bb718299261d2093286e5e38e04c",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/alecthomas/template",
+            "branch": "master",
+            "revision": "a0175ee3bccc567396460bf5acd36800cb10c49c",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/alecthomas/units",
+            "branch": "master",
+            "revision": "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/andybalholm/cascadia",
+            "branch": "master",
+            "revision": "349dd0209470eabd9514242c688c403c0926d266",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/blang/semver",
+            "branch": "master",
+            "revision": "dfab6d0809cb872370374c3bbe5770e926187def",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/pkg/errors",
+            "branch": "master",
+            "revision": "248dadf4e9068a0b3e79f02ed0a610d935de5302",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "golang.org/x/net",
+            "branch": "master",
+            "revision": "f2499483f923065a842d38eb4c7f1927e6fc6e6d",
+            "packages": [
+                "html"
+            ]
+        }
+    ]
+}

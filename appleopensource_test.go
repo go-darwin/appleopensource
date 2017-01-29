@@ -13,7 +13,7 @@ import (
 )
 
 // testListTimestamp date of created the testdata from https://opensource.apple.com
-const timestamp = "2017-01-22"
+const timestamp = "2017-01-30"
 
 var (
 	wantTarballsIndex []byte

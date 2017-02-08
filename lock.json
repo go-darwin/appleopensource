@@ -12,7 +12,7 @@
         {
             "name": "github.com/alecthomas/kingpin",
             "branch": "master",
-            "revision": "7b7c3e10c746bb718299261d2093286e5e38e04c",
+            "revision": "4632cad00ac4bf4c455622ebfae46580c3890b8f",
             "packages": [
                 "."
             ]
@@ -44,7 +44,7 @@
         {
             "name": "github.com/blang/semver",
             "branch": "master",
-            "revision": "dfab6d0809cb872370374c3bbe5770e926187def",
+            "revision": "4a1e882c79dcf4ec00d2e29fac74b9c8938d5052",
             "packages": [
                 "."
             ]
@@ -60,7 +60,7 @@
         {
             "name": "golang.org/x/net",
             "branch": "master",
-            "revision": "f2499483f923065a842d38eb4c7f1927e6fc6e6d",
+            "revision": "236b8f043b920452504e263bc21d354427127473",
             "packages": [
                 "html"
             ]

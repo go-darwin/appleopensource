@@ -4,7 +4,7 @@ VENODR_CMD = $(if $(shell which $(VENODR_TOOL)),,$(error Please install $(VENODR
 default: build
 
 build:  ## Build gaos
-	go build -v ./cmd/gaos
+	go build -v ./cmd/appleopensource
 
 test:  ## Test appleopensource package
 	go test -v -race ./

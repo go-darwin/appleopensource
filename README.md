@@ -5,11 +5,11 @@
 An [opensource.apple.com][opensource.apple.com] resource management package for Go.
 
 
-# gaos
+# appleopensource command-line tool
 
 [![release][release-badge]][release]
 
-**G**o **A**pple **O**pen **S**ource resource management cli tool.
+apple open source resource management cli tool.
 
 
 ===
@@ -17,16 +17,10 @@ An [opensource.apple.com][opensource.apple.com] resource management package for 
 
 ## Install
 
-Installing `gaos` command:
+Installing `appleopensource` command:
 
 ```sh
-go get -u -v github.com/zchee/appleopensource/cmd/gaos
-```
-
-Installing `appleopensource` package only:
-
-```sh
-go get -u -v github.com/zchee/appleopensource
+go get -u -v github.com/zchee/appleopensource/cmd/appleopensource
 ```
 
 

@@ -1,10 +1,10 @@
 {
-    "memo": "3cf8574cb8f2499c2eb1d7241a04f8bdec554cc9edb84bd7673e75d6952dff44",
+    "memo": "00dd965b1d4e2820147e31f5c99fc95ce7ef991773dd20d8d9b90c5ae554bef7",
     "projects": [
         {
             "name": "github.com/PuerkitoBio/goquery",
-            "version": "v1.0.2",
-            "revision": "3cb3b8656883c2cc3deb9c643d93ea6e5157e425",
+            "version": "v1.1.0",
+            "revision": "e1271ee34c6a305e38566ecd27ae374944907ee9",
             "packages": [
                 "."
             ]
@@ -53,6 +53,22 @@
             "name": "github.com/pkg/errors",
             "branch": "master",
             "revision": "248dadf4e9068a0b3e79f02ed0a610d935de5302",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/pkgutil/filepathutil",
+            "branch": "master",
+            "revision": "1edc192210d2c0f2a471176c27c14f852105d085",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/zchee/go-xdgbasedir",
+            "branch": "master",
+            "revision": "6bd33da7ec720657ab9c3e3b997ac0fb189310e2",
             "packages": [
                 "."
             ]

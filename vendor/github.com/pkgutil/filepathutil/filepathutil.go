@@ -4,7 +4,9 @@
 
 package filepathutil
 
-import "os"
+import (
+	"os"
+)
 
 // IsExist returns whether the filename is exists.
 func IsExist(filename string) bool {
@@ -22,4 +24,14 @@ func IsNotExist(filename string) bool {
 func IsDir(filename string) bool {
 	fi, err := os.Stat(filename)
 	return err == nil && fi.IsDir()
+}
+
+// MkdirAll checks whether the exist dir directory. and create directory to dir filepath if not exist.
+func MkdirAll(dir string, perm os.FileMode) error {
+	if IsNotExist(dir) {
+		if err := os.MkdirAll(dir, perm); err != nil {
+			return err
+		}
+	}
+	return nil
 }

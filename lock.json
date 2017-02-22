@@ -36,7 +36,7 @@
         {
             "name": "github.com/pkgutil/filepathutil",
             "branch": "master",
-            "revision": "1edc192210d2c0f2a471176c27c14f852105d085",
+            "revision": "2fb27fe0357ccf5b228716a38dd92c4fdc4442eb",
             "packages": [
                 "."
             ]
@@ -61,7 +61,7 @@
         {
             "name": "golang.org/x/net",
             "branch": "master",
-            "revision": "236b8f043b920452504e263bc21d354427127473",
+            "revision": "6b27048ae5e6ad1ef927e72e437531493de612fe",
             "packages": [
                 "html",
                 "html/atom"

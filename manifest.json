@@ -12,6 +12,9 @@
         "github.com/pkgutil/filepathutil": {
             "branch": "master"
         },
+        "github.com/urfave/cli": {
+            "branch": "master"
+        },
         "github.com/zchee/go-xdgbasedir": {
             "branch": "master"
         }

@@ -3,9 +3,6 @@
         "github.com/PuerkitoBio/goquery": {
             "branch": "master"
         },
-        "github.com/alecthomas/kingpin": {
-            "branch": "master"
-        },
         "github.com/blang/semver": {
             "branch": "master"
         },

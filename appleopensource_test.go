@@ -158,7 +158,7 @@ func TestProject_Source(t *testing.T) {
 
 func TestIndexProject(t *testing.T) {
 	type args struct {
-		typ string
+		typ ResourceType
 	}
 	tests := []struct {
 		name    string
@@ -168,13 +168,13 @@ func TestIndexProject(t *testing.T) {
 	}{
 		{
 			name:    "tarballs",
-			args:    args{typ: "tarballs"},
+			args:    args{typ: TypeTarballs},
 			want:    wantTarballsIndex,
 			wantErr: false,
 		},
 		{
 			name:    "source",
-			args:    args{typ: "source"},
+			args:    args{typ: TypeSource},
 			want:    wantSourceIndex,
 			wantErr: false,
 		},
@@ -196,7 +196,7 @@ func TestIndexProject(t *testing.T) {
 func TestIndexVersion(t *testing.T) {
 	type args struct {
 		project string
-		typ     string
+		typ     ResourceType
 	}
 	tests := []struct {
 		name    string
@@ -206,13 +206,13 @@ func TestIndexVersion(t *testing.T) {
 	}{
 		{
 			name:    "Csu (tarball)",
-			args:    args{project: "Csu", typ: "tarballs"},
+			args:    args{project: "Csu", typ: TypeTarballs},
 			want:    wantIndexVersionCsu,
 			wantErr: false,
 		},
 		{
 			name:    "xnu (source)",
-			args:    args{project: "xnu", typ: "source"},
+			args:    args{project: "xnu", typ: TypeSource},
 			want:    wantIndexVersionXnu,
 			wantErr: false,
 		},

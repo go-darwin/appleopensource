@@ -70,20 +70,20 @@ func index(baseURL *url.URL) ([]byte, error) {
 
 	// 6 is 404 not found
 	if len(strings.TrimSpace(table)) == 0 {
-		return nil, fmt.Errorf("Not found %s page", baseURL.String())
+		return nil, fmt.Errorf("Not found %s project", baseURL.String())
 	}
 
 	return bytes.TrimSpace([]byte(table)), nil
 }
 
 // IndexProject return the index of opensource.apple.com/<typ> HTML DOM tree.
-func IndexProject(typ string) ([]byte, error) {
+func IndexProject(typ ResourceType) ([]byte, error) {
 	var rtype string
 
 	switch typ {
-	case TypeTarballs.String():
+	case TypeTarballs:
 		rtype = TypeTarballs.String()
-	case TypeSource.String():
+	case TypeSource:
 		rtype = TypeSource.String()
 	default:
 		return nil, errors.New("unknown resource type")
@@ -123,13 +123,13 @@ func ListProject(buf []byte) ([]Project, error) {
 }
 
 // IndexVersion return the index of all versions of the project HTML DOM tree.
-func IndexVersion(project, typ string) ([]byte, error) {
+func IndexVersion(project string, typ ResourceType) ([]byte, error) {
 	var rtype string
 
 	switch typ {
-	case TypeTarballs.String():
+	case TypeTarballs:
 		rtype = TypeTarballs.String()
-	case TypeSource.String():
+	case TypeSource:
 		rtype = TypeSource.String()
 	default:
 		return nil, errors.New("unknown resource type")
@@ -210,15 +210,29 @@ func IndexRelease(platform Platform, version string) ([]byte, error) {
 			return nil, err
 		}
 		// wtf why does not use unified url?
-		threshold, err := semver.ParseTolerant("10.9")
+		// 10.12 ~ newer:  Uses 'macos'
+		// 10.11.6 ~ 10.9: Uses 'os-x'
+		// 10.9 ~ older:   Uses 'mac-os-x'
+		threshold, err := semver.ParseTolerant("10.11.6")
 		if err != nil {
 			return nil, err
 		}
 		switch v.Compare(threshold) {
-		case 0, 1: // 0 is equal, 1 is greater than threshold
+		case 1: // 1 is greater than threshold, 10.12 or newer
+			prefix = "macos"
+		case 0: // 0 is equal
 			prefix = "os-x"
 		case -1: // -1 is less than threshold
-			prefix = "mac-os-x"
+			secondThreshold, err := semver.ParseTolerant("10.9")
+			if err != nil {
+				return nil, err
+			}
+			switch v.Compare(secondThreshold) {
+			case 0, 1: // 0 is equal, 1 is greater than threshold
+				prefix = "os-x"
+			case -1:
+				prefix = "mac-os-x"
+			}
 		}
 	case Xcode:
 		prefix = "developer-tools"

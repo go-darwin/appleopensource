@@ -4,13 +4,19 @@
 
 package appleopensource
 
+// Platform represents a release version platform type.
 type Platform int
 
 const (
+	// Unknown unknown platform.
 	Unknown Platform = iota
+	// MacOS is a macOS platform.
 	MacOS
+	// Xcode is a Developer Tools(Xcode) platform.
 	Xcode
+	// IOS is a iOS platform.
 	IOS
+	// Server is a macOS Server platform.
 	Server
 )
 
@@ -29,7 +35,8 @@ func (p Platform) String() string {
 	}
 }
 
-var Release = [...][]string{
+// KnownRelease known release versions.
+var KnownRelease = [...][]string{
 	MacOS:  releaseMacOS,
 	Xcode:  releaseXcode,
 	IOS:    releaseIOS,

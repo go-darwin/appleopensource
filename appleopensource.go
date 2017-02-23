@@ -49,10 +49,12 @@ type Project struct {
 	ComingSoon bool // for release only
 }
 
+// Tarball return the tarballs resource uri.
 func (p *Project) Tarball() string {
 	return fmt.Sprintf("%s/%s/%s/%s-%s.tar.gz", rootURL, TypeTarballs, p.Name, p.Name, p.Version)
 }
 
+// Source return the source resource uri.
 func (p *Project) Source() string {
 	return fmt.Sprintf("%s/%s/%s/%s-%s/", rootURL, TypeSource, p.Name, p.Name, p.Version)
 }
@@ -253,6 +255,7 @@ func IndexRelease(platform Platform, version string) ([]byte, error) {
 	return index(baseURL)
 }
 
+// ComingSoon is a Apple's comming soon message.
 const ComingSoon = "(coming soon!)"
 
 // ListRelease parses the release buf HTML DOM, and return the Project slice.

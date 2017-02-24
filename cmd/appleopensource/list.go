@@ -1,4 +1,4 @@
-// Copyright 2016 Koichi Shiraishi. All rights reserved.
+// Copyright 2017 Koichi Shiraishi. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,36 +8,59 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
-	"os"
 	"path/filepath"
 
-	cli "github.com/alecthomas/kingpin"
+	"github.com/pkgutil/filepathutil"
+	"github.com/urfave/cli"
 	"github.com/zchee/appleopensource"
 )
 
+var listCommand = cli.Command{
+	Name:  "list",
+	Usage: "List all project available to opensource.apple.com.",
+	Flags: []cli.Flag{
+		cli.BoolFlag{
+			Name:  "tarballs, t",
+			Usage: "List the tarballs resources",
+		},
+		cli.BoolFlag{
+			Name:  "source, s",
+			Usage: "List the source resources",
+		},
+	},
+	Before: initList,
+	Action: runList,
+}
+
 var (
-	listTarballs = cmdList.Flag("tarballs", "List the tarballs resources.").Short('t').Bool()
-	listSource   = cmdList.Flag("source", "List the source resources.").Short('s').Bool()
-	listNoCache  = cmdList.Flag("no-cache", "Disable the cache.").Short('n').Bool()
+	listSource   bool
+	listTarballs bool
 )
 
-// index return the opensource.apple.com project index, and caches the HTML DOM tree into cacheDir.
-func index(typ string) ([]byte, error) {
-	cachedir := cacheDir()
-	fname := filepath.Join(cachedir, fmt.Sprintf("%s.html", typ))
-	if isExist(fname) && !*listNoCache {
-		return ioutil.ReadFile(fname)
-	}
+var listCachedir = filepath.Join(cacheDir(), "list")
 
-	if err := os.MkdirAll(cachedir, 0775); err != nil {
-		return nil, err
+func initList(ctx *cli.Context) error {
+	listSource = ctx.Bool("source")
+	listTarballs = ctx.Bool("tarballs")
+
+	if err := filepathutil.MkdirAll(listCachedir, 0700); err != nil {
+		return err
+	}
+	return nil
+}
+
+// index return the opensource.apple.com project index, and caches the HTML DOM tree into cacheDir.
+func indexList(ctx *cli.Context, typ appleopensource.ResourceType) ([]byte, error) {
+	fname := filepath.Join(listCachedir, fmt.Sprintf("%s.html", typ))
+	if filepathutil.IsExist(fname) && !noCache {
+		return ioutil.ReadFile(fname)
 	}
 
 	buf, err := appleopensource.IndexProject(typ)
 	if err != nil {
 		return nil, err
 	}
+
 	if err := ioutil.WriteFile(fname, buf, 0664); err != nil {
 		return nil, err
 	}
@@ -45,27 +68,31 @@ func index(typ string) ([]byte, error) {
 	return buf, nil
 }
 
-func runList(ctx *cli.ParseContext) error {
+func runList(ctx *cli.Context) error {
 	mode := appleopensource.TypeTarballs
 	switch {
-	case *listSource:
-		mode = appleopensource.TypeSource
-	case *listTarballs:
+	case listTarballs:
 		// nothing to do
+	case listSource:
+		mode = appleopensource.TypeSource
 	}
 
-	index, err := index(mode.String())
+	index, err := indexList(ctx, mode)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	list, err := appleopensource.ListProject(index)
+	if err != nil {
+		return err
+	}
 
 	var buf bytes.Buffer
 	for _, b := range list {
 		buf.WriteString(b.Name + "\n")
 	}
-	// TODO(zchee): trim last new line
+
+	// TODO(zchee): another way of trim last new line
 	buf.Truncate(buf.Len() - 1)
 
 	fmt.Printf(buf.String())

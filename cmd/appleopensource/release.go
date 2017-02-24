@@ -1,4 +1,4 @@
-// Copyright 2016 Koichi Shiraishi. All rights reserved.
+// Copyright 2017 Koichi Shiraishi. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,53 +8,74 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"os"
+	"log"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
-	cli "github.com/alecthomas/kingpin"
+	"github.com/pkgutil/filepathutil"
+	"github.com/urfave/cli"
 	"github.com/zchee/appleopensource"
 )
 
-var (
-	releaseMacOS        = cmdRelease.Command("macos", "macOS release.")
-	releaseMacOSVersion = releaseMacOS.Arg("version", "Release version. Default is latest release.").Default(appleopensource.Release[appleopensource.MacOS][0]).String()
-	releaseMacOSList    = releaseMacOS.Flag("list", "List available macOS releases.").Short('l').Bool()
-
-	releaseXcode        = cmdRelease.Command("xcode", "Xcode(Developer Tool) release.")
-	releaseXcodeVersion = releaseXcode.Arg("version", "Release version. Default is latest release.").Default(appleopensource.Release[appleopensource.Xcode][0]).String()
-	releaseXcodeList    = releaseXcode.Flag("list", "List available Xcode(Developer Tool) releases.").Short('l').Bool()
-
-	releaseIOS        = cmdRelease.Command("ios", "iOS release.")
-	releaseIOSVersion = releaseIOS.Arg("version", "Release version. Default is latest release.").Default(appleopensource.Release[appleopensource.IOS][0]).String()
-	releaseIOSOSList  = releaseIOS.Flag("list", "List available iOS releases.").Short('l').Bool()
-
-	releaseServer        = cmdRelease.Command("server", "macOS Server release.")
-	releaseServerVersion = releaseServer.Arg("version", "Release version. Default is latest release.").Default(appleopensource.Release[appleopensource.Server][0]).String()
-	releaseServerList    = releaseServer.Flag("list", "List available Server releases.").Short('l').Bool()
-
-	releaseNocache = cmdRelease.Flag("no-cache", "Disable the cache.").Short('n').Bool()
-	releaseQuite   = cmdRelease.Flag("quiet", "suppress some output").Short('q').Bool()
-)
-
-func init() {
-	releaseMacOS.Action(runReleaseMacOS)
-	releaseXcode.Action(runReleaseXcode)
-	releaseIOS.Action(runReleaseIOS)
-	releaseServer.Action(runReleaseServer)
+var releaseCommand = cli.Command{
+	Name:  "release",
+	Usage: "List all projects included to the releases available to opensource.apple.com.",
+	Flags: []cli.Flag{
+		cli.BoolFlag{
+			Name:  "quiet, q",
+			Usage: "suppress some output",
+		},
+	},
+	Subcommands: []cli.Command{
+		{
+			Name:   "macos",
+			Usage:  "macOS release",
+			Action: runReleaseMacOS,
+		},
+		{
+			Name:   "xcode",
+			Usage:  "Developer Tool(Xcode) release",
+			Action: runReleaseXcode,
+		},
+		{
+			Name:   "ios",
+			Usage:  "iOS release",
+			Action: runReleaseMacOS,
+		},
+		{
+			Name:   "server",
+			Usage:  "macOS Server release",
+			Action: runReleaseMacOS,
+		},
+	},
+	Before: initRelease,
 }
 
-func indexRelease(platform appleopensource.Platform, version string) ([]byte, error) {
-	cachedir := filepath.Join(cacheDir(), "release")
+var (
+	releaseVersion string
+	releaseList    string
+	releaseQuiet   bool
+)
 
-	fname := filepath.Join(cachedir, fmt.Sprintf("%s_%s.html", platform, strings.Replace(version, ".", "", -1)))
-	if isExist(fname) && !*releaseNocache {
-		return ioutil.ReadFile(fname)
+var releaseCachedir = filepath.Join(cacheDir(), "release")
+
+func initRelease(ctx *cli.Context) error {
+	releaseVersion = ctx.Args().Get(1)
+	releaseList = ctx.String("list")
+	releaseQuiet = ctx.Bool("quiet")
+
+	releaseCachedir = ctx.Args().Get(1)
+	if err := filepathutil.MkdirAll(releaseCachedir, 0700); err != nil {
+		return err
 	}
+	return nil
+}
 
-	if err := os.MkdirAll(cachedir, 0775); err != nil {
-		return nil, err
+func indexRelease(ctx *cli.Context, platform appleopensource.Platform, version string) ([]byte, error) {
+	fname := filepath.Join(releaseCachedir, fmt.Sprintf("%s_%s.html", platform, strings.Replace(version, ".", "", -1)))
+	if filepathutil.IsExist(fname) && !noCache {
+		return ioutil.ReadFile(fname)
 	}
 
 	buf, err := appleopensource.IndexRelease(platform, version)
@@ -68,26 +89,26 @@ func indexRelease(platform appleopensource.Platform, version string) ([]byte, er
 	return buf, nil
 }
 
-func runRelease(platform appleopensource.Platform, version string) error {
-	if !*releaseQuite {
+func runRelease(ctx *cli.Context, platform appleopensource.Platform, version string) error {
+	if !releaseQuiet {
 		fmt.Printf("Release version: %s\n", version)
 	}
 
-	release, err := indexRelease(platform, version)
+	release, err := indexRelease(ctx, platform, version)
 	if err != nil {
-		cli.Fatalf(err.Error())
+		log.Fatal(err.Error())
 	}
 
 	list, err := appleopensource.ListRelease(release)
 	if err != nil {
-		cli.Fatalf(err.Error())
+		log.Fatal(err.Error())
 	}
 
 	var buf bytes.Buffer
 	tbuf := tabwriter.NewWriter(&buf, 2, 1, 2, ' ', 0)
 
 	for _, b := range list {
-		if !*releaseQuite {
+		if !releaseQuiet {
 			if b.Updated {
 				tbuf.Write([]byte("\u2022 ")) // u2022: •
 			} else {
@@ -95,7 +116,7 @@ func runRelease(platform appleopensource.Platform, version string) error {
 			}
 		}
 		tbuf.Write([]byte(fmt.Sprintf("%s\t%s", b.Name, b.Version)))
-		if !*releaseQuite {
+		if !releaseQuiet {
 			tbuf.Write([]byte("\t"))
 			if b.ComingSoon {
 				tbuf.Write([]byte(appleopensource.ComingSoon))
@@ -110,18 +131,18 @@ func runRelease(platform appleopensource.Platform, version string) error {
 	return nil
 }
 
-func runReleaseMacOS(ctx *cli.ParseContext) error {
-	return runRelease(appleopensource.MacOS, *releaseMacOSVersion)
+func runReleaseMacOS(ctx *cli.Context) error {
+	return runRelease(ctx, appleopensource.MacOS, releaseVersion)
 }
 
-func runReleaseXcode(ctx *cli.ParseContext) error {
-	return runRelease(appleopensource.Xcode, *releaseXcodeVersion)
+func runReleaseXcode(ctx *cli.Context) error {
+	return runRelease(ctx, appleopensource.Xcode, releaseVersion)
 }
 
-func runReleaseIOS(ctx *cli.ParseContext) error {
-	return runRelease(appleopensource.IOS, *releaseIOSVersion)
+func runReleaseIOS(ctx *cli.Context) error {
+	return runRelease(ctx, appleopensource.IOS, releaseVersion)
 }
 
-func runReleaseServer(ctx *cli.ParseContext) error {
-	return runRelease(appleopensource.Server, *releaseServerVersion)
+func runReleaseServer(ctx *cli.Context) error {
+	return runRelease(ctx, appleopensource.Server, releaseVersion)
 }

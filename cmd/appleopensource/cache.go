@@ -1,4 +1,4 @@
-// Copyright 2016 Koichi Shiraishi. All rights reserved.
+// Copyright 2017 Koichi Shiraishi. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -8,49 +8,73 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	cli "github.com/alecthomas/kingpin"
 	"github.com/pkg/errors"
+	"github.com/pkgutil/filepathutil"
+	"github.com/urfave/cli"
 	"github.com/zchee/appleopensource"
 )
 
-var (
-	cmdCache = cli.Command("cache", "Manage gaos cache.")
-
-	// list
-	cmdCacheList      = cmdCache.Command("list", "List cached project.")
-	cacheListTarballs = cmdCacheList.Flag("tarballs", "List tarballs type cache.").Short('t').Bool()
-	cacheListSource   = cmdCacheList.Flag("source", "List source type cache.").Short('s').Bool()
-
-	// delete
-	cmdCacheDelete = cmdCache.Command("delete", "Delete cache.")
-)
-
-func init() {
-	cmdCacheList.Action(runCacheList)
-	cmdCacheDelete.Action(runCacheDelete)
+var cacheCommand = cli.Command{
+	Name:  "cache",
+	Usage: "Manage the cache",
+	Subcommands: []cli.Command{
+		{
+			Name:  "list",
+			Usage: "List cache project",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "tarballs, t",
+					Usage: "List the tarballs resources type cache",
+				},
+				cli.BoolFlag{
+					Name:  "source, s",
+					Usage: "List the source resources type cache",
+				},
+			},
+			Before: initCache,
+			Action: runCacheList,
+		},
+		{
+			Name:   "delete",
+			Usage:  "Delete cache",
+			Action: runCacheDelete,
+		},
+	},
 }
 
-func runCacheList(ctx *cli.ParseContext) error {
+var (
+	cacheListSource   bool
+	cacheListTarballs bool
+)
+
+func initCache(ctx *cli.Context) error {
+	cacheListSource = ctx.Bool("source")
+	cacheListTarballs = ctx.Bool("tarballs")
+	return nil
+}
+
+func runCacheList(ctx *cli.Context) error {
 	dir := cacheDir()
-	if !isExist(dir) {
+	if filepathutil.IsNotExist(dir) {
 		return fmt.Errorf("Not exists cache")
 	}
 
 	typ := appleopensource.TypeTarballs
 	switch {
-	case *cacheListSource:
-		typ = appleopensource.TypeSource
-	case *cacheListTarballs:
+	case cacheListTarballs:
 		// nothing to do
+	case cacheListSource:
+		typ = appleopensource.TypeSource
 	}
 
 	files, err := ioutil.ReadDir(filepath.Join(dir, typ.String()))
 	if err != nil {
-		cli.Fatalf(errors.Wrapf(err, "Not exists the %s type cache", typ.String()).Error())
+		return errors.Wrapf(err, "Not exists the %s type cache", typ.String())
 	}
 
 	var buf bytes.Buffer
@@ -64,21 +88,11 @@ func runCacheList(ctx *cli.ParseContext) error {
 	return nil
 }
 
-func runCacheDelete(ctx *cli.ParseContext) error {
-	if dir := cacheDir(); isExist(dir) {
+func runCacheDelete(ctx *cli.Context) error {
+	if dir := cacheDir(); filepathutil.IsExist(dir) {
+		log.Printf("Delete %s cache", dir)
 		return os.RemoveAll(dir)
 	}
 
 	return fmt.Errorf("Not exists cache")
-}
-
-// cacheDir create appleopensource cache directory into cacheHome, and
-// return the cache directory path.
-func cacheDir() string {
-	dir := os.Getenv("APPLEOPENSOURCE_CACHE_DIR")
-	if dir == "" {
-		dir = filepath.Join(xdgCacheHome(), "appleopensource")
-	}
-
-	return dir
 }

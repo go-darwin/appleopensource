@@ -1,4 +1,4 @@
-// Copyright 2016 Koichi Shiraishi. All rights reserved.
+// Copyright 2017 Koichi Shiraishi. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,54 +7,55 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
-	"os"
 	"path/filepath"
 	"strings"
 
-	cli "github.com/alecthomas/kingpin"
+	"github.com/pkgutil/filepathutil"
+	"github.com/urfave/cli"
 	"github.com/zchee/appleopensource"
 )
 
-var (
-	versionsProject = cmdVersions.Arg("project", "List version of the project name. Available project name is \"list\" command result.").Required().String()
+var versionsCommand = cli.Command{
+	Name:  "versions",
+	Usage: "List all versions of the project available to opensource.apple.com.",
+	Flags: []cli.Flag{
+		cli.BoolFlag{
+			Name:  "tarballs, t",
+			Usage: "List the tarballs resource versions",
+		},
+		cli.BoolFlag{
+			Name:  "source, s",
+			Usage: "List the source resource versions",
+		},
+	},
+	ArgsUsage: "<project name>",
+	Before:    initVersions,
+	Action:    runVersions,
+}
 
-	versionsTarballs = cmdVersions.Flag("tarballs", "List the tarballs resource versions.").Short('t').Bool()
-	versionsSource   = cmdVersions.Flag("source", "List the source resource versions.").Short('s').Bool()
-	versionsNoCache  = cmdVersions.Flag("no-cache", "Disable the cache.").Short('n').Bool()
+var (
+	versionsProject  string
+	versionsSource   bool
+	versionsTarballs bool
 )
 
-func runVersions(ctx *cli.ParseContext) error {
-	mode := appleopensource.TypeTarballs
-	switch {
-	case *versionsSource:
-		mode = appleopensource.TypeSource
-	case *versionsTarballs:
-		// nothing to do
-	}
-
-	buf, err := indexVersion(*versionsProject, mode.String())
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	list, err := appleopensource.ListVersions(buf)
-
-	fmt.Println(strings.Join(list, "\n"))
-
+func initVersions(ctx *cli.Context) error {
+	versionsProject = ctx.Args().First()
+	versionsSource = ctx.Bool("source")
+	versionsTarballs = ctx.Bool("tarballs")
 	return nil
 }
 
 // index return the opensource.apple.com project index, and caches the HTML DOM tree into cacheDir.
-func indexVersion(project, typ string) ([]byte, error) {
-	cachedir := filepath.Join(cacheDir(), typ)
-	fname := filepath.Join(cachedir, fmt.Sprintf("%s.html", project))
-	if isExist(fname) && !*versionsNoCache {
-		return ioutil.ReadFile(fname)
+func indexVersion(project string, typ appleopensource.ResourceType) ([]byte, error) {
+	versionsCachedir := filepath.Join(cacheDir(), typ.String())
+	if err := filepathutil.MkdirAll(versionsCachedir, 0700); err != nil {
+		return nil, err
 	}
 
-	if err := os.MkdirAll(cachedir, 0755); err != nil {
-		return nil, err
+	fname := filepath.Join(versionsCachedir, fmt.Sprintf("%s.html", project))
+	if filepathutil.IsExist(fname) && !noCache {
+		return ioutil.ReadFile(fname)
 	}
 
 	buf, err := appleopensource.IndexVersion(project, typ)
@@ -66,4 +67,32 @@ func indexVersion(project, typ string) ([]byte, error) {
 	}
 
 	return buf, nil
+}
+
+func runVersions(ctx *cli.Context) error {
+	if err := checkArgs(ctx, 1, minArgs, "project name"); err != nil {
+		return err
+	}
+
+	mode := appleopensource.TypeTarballs
+	switch {
+	case versionsTarballs:
+		// nothing to do
+	case versionsSource:
+		mode = appleopensource.TypeSource
+	}
+
+	buf, err := indexVersion(versionsProject, mode)
+	if err != nil {
+		return err
+	}
+
+	list, err := appleopensource.ListVersions(buf)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(strings.Join(list, "\n"))
+
+	return nil
 }

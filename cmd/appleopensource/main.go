@@ -51,7 +51,7 @@ func main() {
 		cacheCommand,
 	}
 
-	cli.ErrWriter = &FatalWriter{cli.ErrWriter}
+	cli.ErrWriter = &fatalWriter{cli.ErrWriter}
 	if err := app.Run(os.Args); err != nil {
 		// prints the error's details if it is a libcontainer specific error
 		// type then exits the program with an exit status of 1.
@@ -60,10 +60,10 @@ func main() {
 	}
 }
 
-type FatalWriter struct {
+type fatalWriter struct {
 	cliErrWriter io.Writer
 }
 
-func (f *FatalWriter) Write(b []byte) (n int, err error) {
+func (f *fatalWriter) Write(b []byte) (n int, err error) {
 	return f.cliErrWriter.Write(b)
 }

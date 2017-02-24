@@ -1,31 +1,46 @@
+---
 machine:
+  xcode:
+    version: "8.2.1"  # build 8C1002, OS X 10.11.6 (15G1108)
   environment:
-    TERM: xterm-256color
-    GOROOT: "/home/ubuntu/go"
-    PATH: "/home/ubuntu/go/bin:$PATH"
-    GOLANG_VERSION: 1.8beta1
+    XCODE_SCHEME: appleopensource  # required for circleci macOS test
+    XCODE_WORKSPACE: appleopensource.xcworkspace  # required for circleci macOS test
+    HOMEBREW_CACHE: "$HOME/.cache/Homebrew"  # cache for Homebrew
+    HOMEBREW_NO_AUTO_UPDATE: 1  # avoid 'brew update' which is automatically executed by default
+    GOPATH: "$HOME/.go_workspace"
+    PATH: "$HOME/.go_workspace/bin:$PATH"
+    IMPORT_PATH: "github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME"  # $GOPATH hack for circleci build environment
+
+general:
+  build_dir: "../.go_workspace/src/$IMPORT_PATH"  # change build_dir to packages directory under the $GOPATH
+
+checkout:
+  post:
+    - |
+      mkdir -p "$GOPATH/src/$IMPORT_PATH"
+      rsync -azC --delete "$HOME/$CIRCLE_PROJECT_REPONAME/" "$GOPATH/src/$IMPORT_PATH/"
 
 dependencies:
-  cache_directories:
-    - "/home/ubuntu/.go"
   pre:
-    - >
-      if [[ ! -e "/home/ubuntu/.go/${GOLANG_VERSION}/bin/go" ]]; then
-        cd /home/ubuntu
-        curl https://storage.googleapis.com/golang/go${GOLANG_VERSION}.linux-amd64.tar.gz | tar -xz
-        mkdir -p ~/.go
-        cp -rp /home/ubuntu/go /home/ubuntu/.go/${GOLANG_VERSION}
-      else
-        cp -rp /home/ubuntu/.go/${GOLANG_VERSION} ~/go
-      fi
-    - go version
+    - uname -a
+    - sw_vers
+    - env | sort
+  override:
+    - |
+      mkdir -p "$HOMEBREW_CACHE"
+      brew upgrade https://github.com/Homebrew/homebrew-core/raw/master/Formula/go.rb || true
     - go get -u github.com/golang/lint/golint
+    - go get -u github.com/haya14busa/goverage
+  post:
+    - go version; go env
+  cache_directories:
+    - '~/.cache/Homebrew'
 
 test:
   override:
-    - go test -v -race -coverprofile=coverage.txt -covermode=atomic .
+    - goverage -v -race -coverprofile=coverage.txt -covermode=atomic $(go list ./... | grep -v vendor)
   post:
     - bash <(curl -s https://codecov.io/bash)
-    - test -z "$(gofmt -e -s -l -w $(find . -not -iwholename '*vendor*' -and -name '*.go' -print) | tee /dev/stderr)"
+    - test -z "$(gofmt -s -l -w .                         | tee /dev/stderr)"
     - test -z "$(golint $(go list ./... | grep -v vendor) | tee /dev/stderr)"
     - go vet $(go list ./... | grep -v vendor)

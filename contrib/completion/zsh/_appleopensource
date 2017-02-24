@@ -1,4 +1,4 @@
-#compdef gaos
+#compdef appleopensource
 
 # -----------------------------------------------------------------------------
 # The BSD-3-Clause License
@@ -33,7 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
-function _gaos() {
+function _appleopensource() {
   local context curcontext=$curcontext state line ret=1
   declare -A opt_args
 
@@ -43,12 +43,12 @@ function _gaos() {
   'help:Show help'
   'cache:List cached project'
   'list:List all project available to opensource.apple.com'
-  'versions:List all versions of the <project> available to opensource.apple.com'
+  'versions:List all versions of the project available to opensource.apple.com'
   'release:List available macOS releases'
   )
 
   _arguments -C \
-    "1: :{_describe 'gaos command' commands}" \
+    "1: :{_describe 'appleopensource subcommand' commands}" \
     '*:: :->args' \
     && ret=0
 
@@ -62,7 +62,7 @@ function _gaos() {
           'delete:Delete cache'
           )
           _arguments \
-            "1: :{_describe 'cache command' cache_commands}" \
+            "1: :{_describe 'cache subcommand' cache_commands}" \
             '*:: :->args' \
             && ret=0
             case $words[1] in
@@ -73,7 +73,7 @@ function _gaos() {
                   && ret=0
                 ;;
             esac
-
+          ;;
         (list)
           _arguments \
             {-t,--tarballs}'[List tarballs type cache]' \
@@ -83,6 +83,7 @@ function _gaos() {
 
         (versions)
           _arguments \
+            "1:project:($(appleopensource list))" \
             {-t,--tarballs}'[List the tarballs resource versions]' \
             {-s,--source}'[List the source resource versions]' \
             {-n,--no-cache}'[Disable the cache]' \
@@ -104,6 +105,10 @@ function _gaos() {
             '*:: :->args' \
             && ret=0
           ;;
+
+        help)
+          _arguments "1: :{_describe 'command' commands}"
+          ;;
       esac
       ;;
   esac
@@ -111,6 +116,6 @@ function _gaos() {
   return ret
 }
 
-_gaos "$@"
+_appleopensource "$@"
 
 # vim:ft=zsh:et:sts=2:sw=2

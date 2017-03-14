@@ -27,7 +27,7 @@ const (
 	// TarballsResource is a tarballs resource type.
 	TarballsResource ResourceType = 1 << iota
 
-	// TypeSource is a source resource type.
+	// SourceResource is a source resource type.
 	SourceResource
 )
 

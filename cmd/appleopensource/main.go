@@ -54,9 +54,6 @@ func main() {
 
 	cli.ErrWriter = &fatalWriter{cli.ErrWriter}
 	if err := app.Run(os.Args); err != nil {
-		// prints the error's details if it is a libcontainer specific error
-		// type then exits the program with an exit status of 1.
-		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }

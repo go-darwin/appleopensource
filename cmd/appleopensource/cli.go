@@ -37,7 +37,6 @@ func checkArgs(context *cli.Context, expected, checkType int, args ...string) (e
 
 	if err != nil {
 		fmt.Printf("Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(context, cmdName)
 		return err
 	}
 	return nil

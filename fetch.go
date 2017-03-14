@@ -88,6 +88,7 @@ func fetch(wg *sync.WaitGroup, dst, uri string) error {
 	return nil
 }
 
+// Fetch fetchs the uri file to dst with multiple progress bars.
 func Fetch(dst string, uri ...string) (err error) {
 	if !osutil.IsDirExist(dst) {
 		return errors.Wrapf(err, "no such %s dist directory", dst)

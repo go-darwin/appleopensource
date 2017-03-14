@@ -45,10 +45,11 @@ func main() {
 	}
 
 	app.Commands = []cli.Command{
+		cacheCommand,
+		fetchCommand,
 		listCommand,
 		releaseCommand,
 		versionsCommand,
-		cacheCommand,
 	}
 
 	cli.ErrWriter = &fatalWriter{cli.ErrWriter}

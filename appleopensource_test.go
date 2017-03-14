@@ -138,7 +138,7 @@ func TestProject_Source(t *testing.T) {
 				Name:    "xnu",
 				Version: "3789.1.32",
 			},
-			want: "https://opensource.apple.com/source/xnu/xnu-3789.1.32/",
+			want: "https://opensource.apple.com/source/xnu/xnu-3789.1.32",
 		},
 	}
 	for _, tt := range tests {

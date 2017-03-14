@@ -3,8 +3,8 @@
     "projects": [
         {
             "name": "github.com/PuerkitoBio/goquery",
-            "version": "v1.1.0",
-            "revision": "e1271ee34c6a305e38566ecd27ae374944907ee9",
+            "branch": "master",
+            "revision": "c641b87978a16588afa9ab1a02e02c8b8e05b314",
             "packages": [
                 "."
             ]
@@ -28,7 +28,7 @@
         {
             "name": "github.com/pkg/errors",
             "branch": "master",
-            "revision": "248dadf4e9068a0b3e79f02ed0a610d935de5302",
+            "revision": "bfd5150e4e41705ded2129ec33379de1cb90b513",
             "packages": [
                 "."
             ]
@@ -36,7 +36,7 @@
         {
             "name": "github.com/pkgutil/filepathutil",
             "branch": "master",
-            "revision": "2fb27fe0357ccf5b228716a38dd92c4fdc4442eb",
+            "revision": "72958fe82fcf1dc8ff8d83956550e2a0fbcd0ba4",
             "packages": [
                 "."
             ]
@@ -44,7 +44,7 @@
         {
             "name": "github.com/urfave/cli",
             "branch": "master",
-            "revision": "2526b57c56f30b50466c96c4133b1a4ad0f0191f",
+            "revision": "9e5b04886c4bfee2ceba1465b8121057355c4e53",
             "packages": [
                 "."
             ]
@@ -61,7 +61,7 @@
         {
             "name": "golang.org/x/net",
             "branch": "master",
-            "revision": "6b27048ae5e6ad1ef927e72e437531493de612fe",
+            "revision": "a6577fac2d73be281a500b310739095313165611",
             "packages": [
                 "html",
                 "html/atom"

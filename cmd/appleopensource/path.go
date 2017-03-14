@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pkgutil/filepathutil"
+	"github.com/pkgutil/osutil"
 	xdgbasedir "github.com/zchee/go-xdgbasedir"
 )
 
@@ -20,7 +20,7 @@ func cacheDir() string {
 	if rootCacheDir == "" {
 		rootCacheDir = filepath.Join(xdgbasedir.CacheHome(), "appleopensource")
 	}
-	if err := filepathutil.MkdirAll(rootCacheDir, 0700); err != nil {
+	if err := osutil.MkdirAll(rootCacheDir, 0700); err != nil {
 		log.Fatal(err)
 	}
 

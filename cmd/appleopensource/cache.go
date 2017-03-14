@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/pkgutil/filepathutil"
+	"github.com/pkgutil/osutil"
 	"github.com/urfave/cli"
 	"github.com/zchee/appleopensource"
 )
@@ -60,7 +60,7 @@ func initCache(ctx *cli.Context) error {
 
 func runCacheList(ctx *cli.Context) error {
 	dir := cacheDir()
-	if filepathutil.IsNotExist(dir) {
+	if osutil.IsNotExist(dir) {
 		return fmt.Errorf("Not exists cache")
 	}
 
@@ -89,7 +89,7 @@ func runCacheList(ctx *cli.Context) error {
 }
 
 func runCacheDelete(ctx *cli.Context) error {
-	if dir := cacheDir(); filepathutil.IsExist(dir) {
+	if dir := cacheDir(); osutil.IsExist(dir) {
 		log.Printf("Delete %s cache", dir)
 		return os.RemoveAll(dir)
 	}

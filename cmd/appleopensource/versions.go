@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkgutil/filepathutil"
+	"github.com/pkgutil/osutil"
 	"github.com/urfave/cli"
 	"github.com/zchee/appleopensource"
 )
@@ -49,12 +49,12 @@ func initVersions(ctx *cli.Context) error {
 // index return the opensource.apple.com project index, and caches the HTML DOM tree into cacheDir.
 func indexVersion(project string, typ appleopensource.ResourceType) ([]byte, error) {
 	versionsCachedir := filepath.Join(cacheDir(), typ.String())
-	if err := filepathutil.MkdirAll(versionsCachedir, 0700); err != nil {
+	if err := osutil.MkdirAll(versionsCachedir, 0700); err != nil {
 		return nil, err
 	}
 
 	fname := filepath.Join(versionsCachedir, fmt.Sprintf("%s.html", project))
-	if filepathutil.IsExist(fname) && !noCache {
+	if osutil.IsExist(fname) && !noCache {
 		return ioutil.ReadFile(fname)
 	}
 

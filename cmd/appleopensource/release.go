@@ -13,7 +13,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/pkgutil/filepathutil"
+	"github.com/pkgutil/osutil"
 	"github.com/urfave/cli"
 	"github.com/zchee/appleopensource"
 )
@@ -66,7 +66,7 @@ func initRelease(ctx *cli.Context) error {
 	releaseQuiet = ctx.Bool("quiet")
 
 	releaseCachedir = ctx.Args().Get(1)
-	if err := filepathutil.MkdirAll(releaseCachedir, 0700); err != nil {
+	if err := osutil.MkdirAll(releaseCachedir, 0700); err != nil {
 		return err
 	}
 	return nil
@@ -74,7 +74,7 @@ func initRelease(ctx *cli.Context) error {
 
 func indexRelease(ctx *cli.Context, platform appleopensource.Platform, version string) ([]byte, error) {
 	fname := filepath.Join(releaseCachedir, fmt.Sprintf("%s_%s.html", platform, strings.Replace(version, ".", "", -1)))
-	if filepathutil.IsExist(fname) && !noCache {
+	if osutil.IsExist(fname) && !noCache {
 		return ioutil.ReadFile(fname)
 	}
 

@@ -48,6 +48,6 @@ test:
       done
   post:
     - bash <(curl -s https://codecov.io/bash)
-    - test -z "$(gofmt -s -l -w .                         | tee /dev/stderr)"
+    - test -z "$(gofmt -e -s -l $(find . -not -iwholename '*vendor*' -and -name '*.go' -print) | tee /dev/stderr)"
     - test -z "$(golint $(go list ./... | grep -v vendor) | tee /dev/stderr)"
     - go vet $(go list ./... | grep -v vendor)

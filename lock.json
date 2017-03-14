@@ -1,5 +1,5 @@
 {
-    "memo": "d17cf1f2f49f3afe01629a2e474d8878897f1e72f21a027add46071f6f242fb5",
+    "memo": "e2e1d69fdfd4dcb975229caeea770d5d229a938456b7ce331bce9ee2c0514351",
     "projects": [
         {
             "name": "github.com/PuerkitoBio/goquery",
@@ -37,6 +37,14 @@
             "name": "github.com/pkgutil/filepathutil",
             "branch": "master",
             "revision": "72958fe82fcf1dc8ff8d83956550e2a0fbcd0ba4",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/pkgutil/osutil",
+            "branch": "master",
+            "revision": "2114b006ce9b46aab99fc7c623940ae0b81bcf3d",
             "packages": [
                 "."
             ]

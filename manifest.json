@@ -15,6 +15,9 @@
         "github.com/urfave/cli": {
             "branch": "master"
         },
+        "github.com/vbauerster/mpb": {
+            "branch": "master"
+        },
         "github.com/zchee/go-xdgbasedir": {
             "branch": "master"
         }

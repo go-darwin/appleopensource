@@ -1,5 +1,5 @@
 {
-    "memo": "e2e1d69fdfd4dcb975229caeea770d5d229a938456b7ce331bce9ee2c0514351",
+    "memo": "a95f56a3dbc44910e973acdf61e09464964937c9fa4fc5148895151aaa0c1a7d",
     "projects": [
         {
             "name": "github.com/PuerkitoBio/goquery",
@@ -26,17 +26,17 @@
             ]
         },
         {
-            "name": "github.com/pkg/errors",
-            "branch": "master",
-            "revision": "bfd5150e4e41705ded2129ec33379de1cb90b513",
+            "name": "github.com/mattn/go-isatty",
+            "version": "v0.0.1",
+            "revision": "3a115632dcd687f9c8cd01679c83a06a0e21c1f3",
             "packages": [
                 "."
             ]
         },
         {
-            "name": "github.com/pkgutil/filepathutil",
+            "name": "github.com/pkg/errors",
             "branch": "master",
-            "revision": "72958fe82fcf1dc8ff8d83956550e2a0fbcd0ba4",
+            "revision": "bfd5150e4e41705ded2129ec33379de1cb90b513",
             "packages": [
                 "."
             ]
@@ -58,6 +58,15 @@
             ]
         },
         {
+            "name": "github.com/vbauerster/mpb",
+            "version": "v2.0.3",
+            "revision": "6013267b5c3d60409c5c34800d4832b813d6178d",
+            "packages": [
+                ".",
+                "cwriter"
+            ]
+        },
+        {
             "name": "github.com/zchee/go-xdgbasedir",
             "branch": "master",
             "revision": "e38ffd0912140d351e7e0d99614117e0c6fa6fec",
@@ -73,6 +82,14 @@
             "packages": [
                 "html",
                 "html/atom"
+            ]
+        },
+        {
+            "name": "golang.org/x/sys",
+            "branch": "master",
+            "revision": "99f16d856c9836c42d24e7ab64ea72916925fa97",
+            "packages": [
+                "unix"
             ]
         }
     ]

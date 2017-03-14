@@ -7,6 +7,7 @@ package appleopensource
 import (
 	"bytes"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -67,10 +68,16 @@ func fetch(wg *sync.WaitGroup, dst, uri string) error {
 			}()
 
 			client := &http.Client{}
-			req, _ := http.NewRequest("GET", uri, nil)
+			req, err := http.NewRequest("GET", uri, nil)
+			if err != nil {
+				log.Fatal(err)
+			}
 
 			req.Header.Add("Range", rangeHeader)
-			resp, _ := client.Do(req)
+			resp, err := client.Do(req)
+			if err != nil {
+				log.Fatal(err)
+			}
 			defer resp.Body.Close()
 
 			pb.Incr(subLength)

@@ -74,12 +74,12 @@ func runVersions(ctx *cli.Context) error {
 		return err
 	}
 
-	mode := appleopensource.TypeTarballs
+	mode := appleopensource.TarballsResource
 	switch {
 	case versionsTarballs:
 		// nothing to do
 	case versionsSource:
-		mode = appleopensource.TypeSource
+		mode = appleopensource.SourceResource
 	}
 
 	buf, err := indexVersion(versionsProject, mode)

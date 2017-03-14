@@ -56,12 +56,12 @@ func TestResourceType_String(t *testing.T) {
 	}{
 		{
 			name: "tarballs",
-			r:    TypeTarballs,
+			r:    TarballsResource,
 			want: "tarballs",
 		},
 		{
 			name: "source",
-			r:    TypeSource,
+			r:    SourceResource,
 			want: "source",
 		},
 		{
@@ -168,13 +168,13 @@ func TestIndexProject(t *testing.T) {
 	}{
 		{
 			name:    "tarballs",
-			args:    args{typ: TypeTarballs},
+			args:    args{typ: TarballsResource},
 			want:    wantTarballsIndex,
 			wantErr: false,
 		},
 		{
 			name:    "source",
-			args:    args{typ: TypeSource},
+			args:    args{typ: SourceResource},
 			want:    wantSourceIndex,
 			wantErr: false,
 		},
@@ -206,13 +206,13 @@ func TestIndexVersion(t *testing.T) {
 	}{
 		{
 			name:    "Csu (tarball)",
-			args:    args{project: "Csu", typ: TypeTarballs},
+			args:    args{project: "Csu", typ: TarballsResource},
 			want:    wantIndexVersionCsu,
 			wantErr: false,
 		},
 		{
 			name:    "xnu (source)",
-			args:    args{project: "xnu", typ: TypeSource},
+			args:    args{project: "xnu", typ: SourceResource},
 			want:    wantIndexVersionXnu,
 			wantErr: false,
 		},

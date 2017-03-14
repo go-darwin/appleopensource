@@ -64,12 +64,12 @@ func runCacheList(ctx *cli.Context) error {
 		return fmt.Errorf("Not exists cache")
 	}
 
-	typ := appleopensource.TypeTarballs
+	typ := appleopensource.TarballsResource
 	switch {
 	case cacheListTarballs:
 		// nothing to do
 	case cacheListSource:
-		typ = appleopensource.TypeSource
+		typ = appleopensource.SourceResource
 	}
 
 	files, err := ioutil.ReadDir(filepath.Join(dir, typ.String()))

@@ -69,12 +69,12 @@ func indexList(ctx *cli.Context, typ appleopensource.ResourceType) ([]byte, erro
 }
 
 func runList(ctx *cli.Context) error {
-	mode := appleopensource.TypeTarballs
+	mode := appleopensource.TarballsResource
 	switch {
 	case listTarballs:
 		// nothing to do
 	case listSource:
-		mode = appleopensource.TypeSource
+		mode = appleopensource.SourceResource
 	}
 
 	index, err := indexList(ctx, mode)

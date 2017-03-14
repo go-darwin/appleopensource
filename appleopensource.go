@@ -16,51 +16,35 @@ import (
 	"github.com/blang/semver"
 )
 
-const rootURL = "https://opensource.apple.com"
+const root = "https://opensource.apple.com"
 
-// ResourceType represents a list mode.
+var rootURL, _ = url.Parse(root)
+
+// ResourceType represents a resource type.
 type ResourceType int
 
 const (
-	// TypeTarballs tarballs type.
-	TypeTarballs ResourceType = 1 << iota
+	// TarballsResource is a tarballs resource type.
+	TarballsResource ResourceType = 1 << iota
 
-	// TypeSource source type.
-	TypeSource
+	// TypeSource is a source resource type.
+	SourceResource
 )
 
 // String implements a fmt.Stringer interface.
 func (r ResourceType) String() string {
 	switch r {
-	case TypeTarballs:
+	case TarballsResource:
 		return "tarballs"
-	case TypeSource:
+	case SourceResource:
 		return "source"
 	default:
 		return ""
 	}
 }
 
-// Project represents a apple open source project.
-type Project struct {
-	Name       string
-	Version    string
-	Updated    bool // for release only
-	ComingSoon bool // for release only
-}
-
-// Tarball return the tarballs resource uri.
-func (p *Project) Tarball() string {
-	return fmt.Sprintf("%s/%s/%s/%s-%s.tar.gz", rootURL, TypeTarballs, p.Name, p.Name, p.Version)
-}
-
-// Source return the source resource uri.
-func (p *Project) Source() string {
-	return fmt.Sprintf("%s/%s/%s/%s-%s/", rootURL, TypeSource, p.Name, p.Name, p.Version)
-}
-
-func index(baseURL *url.URL) ([]byte, error) {
-	dom, err := goquery.NewDocument(baseURL.String())
+func index(u *url.URL) ([]byte, error) {
+	dom, err := goquery.NewDocument(u.String())
 	if err != nil {
 		return nil, err
 	}
@@ -70,9 +54,9 @@ func index(baseURL *url.URL) ([]byte, error) {
 		return nil, err
 	}
 
-	// 6 is 404 not found
+	// 0 is 404 not found
 	if len(strings.TrimSpace(table)) == 0 {
-		return nil, fmt.Errorf("Not found %s project", baseURL.String())
+		return nil, fmt.Errorf("Not found %s project", u.String())
 	}
 
 	return bytes.TrimSpace([]byte(table)), nil
@@ -80,30 +64,98 @@ func index(baseURL *url.URL) ([]byte, error) {
 
 // IndexProject return the index of opensource.apple.com/<typ> HTML DOM tree.
 func IndexProject(typ ResourceType) ([]byte, error) {
-	var rtype string
+	u := *rootURL // copy
+	u.Path = path.Join(u.Path, typ.String())
 
-	switch typ {
-	case TypeTarballs:
-		rtype = TypeTarballs.String()
-	case TypeSource:
-		rtype = TypeSource.String()
-	default:
-		return nil, errors.New("unknown resource type")
-	}
-
-	baseURL, err := url.Parse(rootURL)
-	if err != nil {
-		return nil, err
-	}
-	baseURL.Path = path.Join(baseURL.Path, fmt.Sprint(rtype))
-
-	return index(baseURL)
+	return index(&u)
 }
 
-// ListProject parses the buf HTML DOM tree, and return the project list.
+// IndexVersion return the index of all versions of the project HTML DOM tree.
+func IndexVersion(project string, typ ResourceType) ([]byte, error) {
+	u := *rootURL // copy
+	u.Path = path.Join(u.Path, typ.String(), project)
+
+	return index(&u)
+}
+
+const (
+	macOSPrefix  = "macos"
+	osxPrefix    = "os-x"
+	macOSXPrefix = "mac-os-x"
+)
+
+// IndexRelease return the index of projects of the specified platforms release version.
+func IndexRelease(platform Platform, version string) ([]byte, error) {
+	var prefix string
+
+	switch platform {
+	case MacOS:
+		v, err := semver.ParseTolerant(version)
+		if err != nil {
+			return nil, err
+		}
+		// wtf why does not use unified url?
+		// 10.12 ~ newer:  Uses 'macos'
+		// 10.11.6 ~ 10.9: Uses 'os-x'
+		// 10.9 ~ older:   Uses 'mac-os-x'
+		threshold, err := semver.ParseTolerant("10.11.6")
+		if err != nil {
+			return nil, err
+		}
+		switch v.Compare(threshold) {
+		case 1: // 1 is greater than threshold, 10.12 or newer
+			prefix = macOSPrefix
+		case 0: // 0 is equal, 10.11.6
+			prefix = osxPrefix
+		case -1: // -1 is less than threshold, 10.11.5 or older
+			secondThreshold, err := semver.ParseTolerant("10.9")
+			if err != nil {
+				return nil, err
+			}
+			switch v.Compare(secondThreshold) {
+			case 0, 1: // 0 is equal, 1 is greater than threshold
+				prefix = osxPrefix
+			case -1:
+				prefix = macOSXPrefix
+			}
+		}
+	case Xcode:
+		prefix = "developer-tools"
+	case IOS:
+		prefix = "ios"
+	case Server:
+		prefix = "os-x-server"
+	default:
+		return nil, errors.New("unknown platform")
+	}
+
+	u := *rootURL // copy
+	u.Path = path.Join(u.Path, "release", fmt.Sprintf("%s-%s.html", prefix, strings.Replace(version, ".", "", -1)))
+
+	return index(&u)
+}
+
+// Project represents a Apple open source project.
+type Project struct {
+	Name       string
+	Version    string
+	Updated    bool // for release only
+	ComingSoon bool // for release only
+}
+
+// Tarball return the tarballs resource download uri.
+func (p *Project) Tarball() string {
+	return path.Join(root, TarballsResource.String(), p.Name, fmt.Sprintf("%s-%s.tar.gz", p.Name, p.Version))
+}
+
+// Source return the source resource page uri.
+func (p *Project) Source() string {
+	return path.Join(root, SourceResource.String(), p.Name, fmt.Sprintf("%s-%s", p.Name, p.Version))
+}
+
+// ListProject parses the project list HTML DOM, and return the project list.
 func ListProject(buf []byte) ([]Project, error) {
-	r := bytes.NewReader(buf)
-	dom, err := goquery.NewDocumentFromReader(r)
+	dom, err := goquery.NewDocumentFromReader(bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}
@@ -124,32 +176,9 @@ func ListProject(buf []byte) ([]Project, error) {
 	return list, nil
 }
 
-// IndexVersion return the index of all versions of the project HTML DOM tree.
-func IndexVersion(project string, typ ResourceType) ([]byte, error) {
-	var rtype string
-
-	switch typ {
-	case TypeTarballs:
-		rtype = TypeTarballs.String()
-	case TypeSource:
-		rtype = TypeSource.String()
-	default:
-		return nil, errors.New("unknown resource type")
-	}
-
-	baseURL, err := url.Parse(rootURL)
-	if err != nil {
-		return nil, err
-	}
-	baseURL.Path = path.Join(baseURL.Path, fmt.Sprint(rtype), project)
-
-	return index(baseURL)
-}
-
-// ListVersions parses the buf HTML DOM tree, and return the available versions of the project.
+// ListVersions parses the project version index page HTML DOM, and return the available versions of the project.
 func ListVersions(buf []byte) ([]string, error) {
-	r := bytes.NewReader(buf)
-	dom, err := goquery.NewDocumentFromReader(r)
+	dom, err := goquery.NewDocumentFromReader(bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}
@@ -159,12 +188,9 @@ func ListVersions(buf []byte) ([]string, error) {
 	// Subtracts the number of <th>, <hr> and "Parent Directory"
 	vlist := make([]semver.Version, versions.Length()-4)
 
-	var start int
 	versions.Each(func(i int, s *goquery.Selection) {
 		if name := s.Find("td > a").Text(); name != "" && name != "Parent Directory" {
-			if start == 0 {
-				start = strings.Index(name, "-") + 1
-			}
+			start := strings.Index(name, "-") + 1
 
 			var end int
 			switch {
@@ -191,6 +217,7 @@ func ListVersions(buf []byte) ([]string, error) {
 	return list, nil
 }
 
+// trimZeros trims ".0" as much as possible.
 func trimZeros(version string) string {
 	for {
 		if strings.HasSuffix(version, ".0") {
@@ -201,67 +228,12 @@ func trimZeros(version string) string {
 	}
 }
 
-// IndexRelease return the index of all releases of the platform.
-func IndexRelease(platform Platform, version string) ([]byte, error) {
-	var prefix string
-
-	switch platform {
-	case MacOS:
-		v, err := semver.ParseTolerant(version)
-		if err != nil {
-			return nil, err
-		}
-		// wtf why does not use unified url?
-		// 10.12 ~ newer:  Uses 'macos'
-		// 10.11.6 ~ 10.9: Uses 'os-x'
-		// 10.9 ~ older:   Uses 'mac-os-x'
-		threshold, err := semver.ParseTolerant("10.11.6")
-		if err != nil {
-			return nil, err
-		}
-		switch v.Compare(threshold) {
-		case 1: // 1 is greater than threshold, 10.12 or newer
-			prefix = "macos"
-		case 0: // 0 is equal
-			prefix = "os-x"
-		case -1: // -1 is less than threshold
-			secondThreshold, err := semver.ParseTolerant("10.9")
-			if err != nil {
-				return nil, err
-			}
-			switch v.Compare(secondThreshold) {
-			case 0, 1: // 0 is equal, 1 is greater than threshold
-				prefix = "os-x"
-			case -1:
-				prefix = "mac-os-x"
-			}
-		}
-	case Xcode:
-		prefix = "developer-tools"
-	case IOS:
-		prefix = "ios"
-	case Server:
-		prefix = "os-x-server"
-	default:
-		return nil, errors.New("unknown platform")
-	}
-
-	baseURL, err := url.Parse(rootURL)
-	if err != nil {
-		return nil, err
-	}
-	baseURL.Path = path.Join(baseURL.Path, "release", fmt.Sprintf("%s-%s.html", prefix, strings.Replace(version, ".", "", -1)))
-
-	return index(baseURL)
-}
-
 // ComingSoon is a Apple's comming soon message.
 const ComingSoon = "(coming soon!)"
 
-// ListRelease parses the release buf HTML DOM, and return the Project slice.
+// ListRelease parses the release page HTML DOM, and return the Project slice.
 func ListRelease(buf []byte) ([]Project, error) {
-	r := bytes.NewReader(buf)
-	dom, err := goquery.NewDocumentFromReader(r)
+	dom, err := goquery.NewDocumentFromReader(bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}

@@ -16,7 +16,7 @@ import (
 	"github.com/blang/semver"
 )
 
-const root = "https://opensource.apple.com"
+const root = "https://opensource.apple.com/"
 
 var rootURL, _ = url.Parse(root)
 
@@ -145,12 +145,12 @@ type Project struct {
 
 // Tarball return the tarballs resource download uri.
 func (p *Project) Tarball() string {
-	return path.Join(root, TarballsResource.String(), p.Name, fmt.Sprintf("%s-%s.tar.gz", p.Name, p.Version))
+	return root + path.Join(TarballsResource.String(), p.Name, fmt.Sprintf("%s-%s.tar.gz", p.Name, p.Version))
 }
 
 // Source return the source resource page uri.
 func (p *Project) Source() string {
-	return path.Join(root, SourceResource.String(), p.Name, fmt.Sprintf("%s-%s", p.Name, p.Version))
+	return root + path.Join(SourceResource.String(), p.Name, fmt.Sprintf("%s-%s", p.Name, p.Version))
 }
 
 // ListProject parses the project list HTML DOM, and return the project list.

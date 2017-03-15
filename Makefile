@@ -5,8 +5,11 @@ VENODR_CMD = $(if $(shell which $(VENODR_TOOL)),,$(error Please install $(VENODR
 
 default: build
 
-build:  ## Build appleopensource binary.
+build:  ## Build the appleopensource binary.
 	go build -ldflags "$(GO_LDFLAGS)" ./cmd/appleopensource
+
+install:  ## Install the appleopensource binary.
+	go install -v -x -ldflags "$(GO_LDFLAGS)" ./cmd/appleopensource
 
 run: build  ## Run the appleopensource with fetch the xnu 4 versions.
 	./appleopensource fetch xnu $(shell ./appleopensource versions xnu) .

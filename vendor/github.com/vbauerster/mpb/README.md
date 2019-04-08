@@ -1,4 +1,9 @@
-# Multi Progress Bar [![GoDoc](https://godoc.org/github.com/vbauerster/mpb?status.svg)](https://godoc.org/github.com/vbauerster/mpb) [![Build Status](https://travis-ci.org/vbauerster/mpb.svg?branch=master)](https://travis-ci.org/vbauerster/mpb)
+# Multi Progress Bar
+
+[![GoDoc](https://godoc.org/github.com/vbauerster/mpb?status.svg)](https://godoc.org/github.com/vbauerster/mpb)
+[![Build Status](https://travis-ci.org/vbauerster/mpb.svg?branch=master)](https://travis-ci.org/vbauerster/mpb)
+[![Go Report Card](https://goreportcard.com/badge/github.com/vbauerster/mpb)](https://goreportcard.com/report/github.com/vbauerster/mpb)
+[![cover.run go](https://cover.run/go/github.com/vbauerster/mpb.svg)](https://cover.run/go/github.com/vbauerster/mpb)
 
 **mpb** is a Go lib for rendering progress bars in terminal applications.
 
@@ -24,10 +29,6 @@ but unlike the last one, implementation is mutex free, following Go's idiom:
 To get the package, execute:
 
 ```sh
-go get gopkg.in/vbauerster/mpb.v1
-```
-
-```sh
 go get gopkg.in/vbauerster/mpb.v2
 ```
 
@@ -39,8 +40,8 @@ Following is the simplest use case:
 	// Star mpb's rendering goroutine.
 	p := mpb.New()
 	// Set custom width for every bar, which mpb will render
-	// The default one in 70
-	p.SetWidth(80)
+	// The default one is 80
+	p.SetWidth(100)
 	// Set custom format for every bar, the default one is "[=>-]"
 	p.Format("╢▌▌░╟")
 	// Set custom refresh rate, the default one is 100 ms
@@ -50,15 +51,12 @@ Following is the simplest use case:
 	bar := p.AddBar(100).PrependName("Single Bar:", 0, 0).AppendPercentage(5, 0)
 
 	for i := 0; i < 100; i++ {
-		bar.Incr(1) // increment progress bar
 		time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
+		bar.Incr(1) // increment progress bar
 	}
 
 	// Don't forget to stop mpb's rendering goroutine
 	p.Stop()
-
-	// You cannot add bars after p.Stop() has been called
-	// p.AddBar(100) // will panic
 ```
 
 Running [this](example/singleBar/main.go), will produce:
@@ -86,8 +84,8 @@ own goroutine, therefore adding multiple bars is easy and safe:
 			// if you still need p.AddBar() here and maintain ordering, use
 			// (*mpb.Progress).BeforeRenderFunc(f mpb.BeforeRender)
 			for i := 0; i < 100; i++ {
-				bar.Incr(1)
 				time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
+				bar.Incr(1)
 			}
 		}()
 	}
@@ -140,6 +138,6 @@ Refer to godoc [example](https://godoc.org/github.com/vbauerster/mpb#example-Bar
 
 ## License
 
-[MIT](https://github.com/vbauerster/mpb/blob/master/LICENSE)
+[BSD 3-Clause](https://opensource.org/licenses/BSD-3-Clause)
 
 The typeface used in screen shots: [Iosevka](https://be5invis.github.io/Iosevka)

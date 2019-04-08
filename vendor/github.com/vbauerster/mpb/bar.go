@@ -21,21 +21,16 @@ type barFmtBytes [numFmtRunes][]byte
 
 // Bar represents a progress Bar
 type Bar struct {
-	stateReqCh    chan chan state
-	widthCh       chan int
-	formatCh      chan string
-	etaAlphaCh    chan float64
-	incrCh        chan int64
-	trimLeftCh    chan bool
-	trimRightCh   chan bool
-	refillCh      chan *refill
-	dCommandCh    chan *dCommandData
+	stateCh       chan state
+	incrCh        chan incrReq
 	flushedCh     chan struct{}
-	removeReqCh   chan struct{}
 	completeReqCh chan struct{}
+	removeReqCh   chan struct{}
 	done          chan struct{}
+	inProgress    chan struct{}
+	cancel        <-chan struct{}
 
-	// follawing are used after (*Bar.done) is closed
+	// following are used after (*Bar.done) is closed
 	width int
 	state state
 }
@@ -43,8 +38,20 @@ type Bar struct {
 // Statistics represents statistics of the progress bar.
 // Cantains: Total, Current, TimeElapsed, TimePerItemEstimate
 type Statistics struct {
-	Total, Current                   int64
-	TimeElapsed, TimePerItemEstimate time.Duration
+	ID                  int
+	Completed           bool
+	Aborted             bool
+	Total               int64
+	Current             int64
+	StartTime           time.Time
+	TimeElapsed         time.Duration
+	TimePerItemEstimate time.Duration
+}
+
+// Refil is a struct for b.IncrWithReFill
+type Refill struct {
+	Char rune
+	till int64
 }
 
 // Eta returns exponential-weighted-moving-average ETA estimator
@@ -53,13 +60,9 @@ func (s *Statistics) Eta() time.Duration {
 }
 
 type (
-	runeFormatElement struct {
-		char  rune
-		index uint8
-	}
-	refill struct {
-		char rune
-		till int64
+	incrReq struct {
+		amount int64
+		refill *Refill
 	}
 	state struct {
 		id             int
@@ -70,68 +73,83 @@ type (
 		current        int64
 		trimLeftSpace  bool
 		trimRightSpace bool
+		completed      bool
+		aborted        bool
+		startTime      time.Time
 		timeElapsed    time.Duration
 		timePerItem    time.Duration
 		appendFuncs    []DecoratorFunc
 		prependFuncs   []DecoratorFunc
 		simpleSpinner  func() byte
-		refill         *refill
+		refill         *Refill
 	}
 )
 
 func newBar(id int, total int64, width int, format string, wg *sync.WaitGroup, cancel <-chan struct{}) *Bar {
 	b := &Bar{
-		stateReqCh:    make(chan chan state),
-		widthCh:       make(chan int),
-		formatCh:      make(chan string),
-		etaAlphaCh:    make(chan float64),
-		incrCh:        make(chan int64, 1),
-		trimLeftCh:    make(chan bool),
-		trimRightCh:   make(chan bool),
-		refillCh:      make(chan *refill),
-		dCommandCh:    make(chan *dCommandData),
-		flushedCh:     make(chan struct{}, 1),
+		width:         width,
+		stateCh:       make(chan state),
+		incrCh:        make(chan incrReq),
+		flushedCh:     make(chan struct{}),
 		removeReqCh:   make(chan struct{}),
 		completeReqCh: make(chan struct{}),
 		done:          make(chan struct{}),
+		inProgress:    make(chan struct{}),
+		cancel:        cancel,
 	}
-	go b.server(id, total, width, format, wg, cancel)
+
+	s := state{
+		id:       id,
+		total:    total,
+		width:    width,
+		etaAlpha: 0.25,
+	}
+
+	if total <= 0 {
+		s.simpleSpinner = getSpinner()
+	} else {
+		s.updateFormat(format)
+	}
+
+	go b.server(wg, s)
 	return b
 }
 
 // SetWidth overrides width of individual bar
 func (b *Bar) SetWidth(n int) *Bar {
-	if n < 2 || isClosed(b.done) {
+	if n < 2 {
 		return b
 	}
-	b.widthCh <- n
+	b.updateState(func(s *state) {
+		s.width = n
+	})
 	return b
 }
 
 // TrimLeftSpace removes space befor LeftEnd charater
 func (b *Bar) TrimLeftSpace() *Bar {
-	if isClosed(b.done) {
-		return b
-	}
-	b.trimLeftCh <- true
+	b.updateState(func(s *state) {
+		s.trimLeftSpace = true
+	})
 	return b
 }
 
 // TrimRightSpace removes space after RightEnd charater
 func (b *Bar) TrimRightSpace() *Bar {
-	if isClosed(b.done) {
-		return b
-	}
-	b.trimRightCh <- true
+	b.updateState(func(s *state) {
+		s.trimRightSpace = true
+	})
 	return b
 }
 
 // Format overrides format of individual bar
 func (b *Bar) Format(format string) *Bar {
-	if utf8.RuneCountInString(format) != numFmtRunes || isClosed(b.done) {
+	if utf8.RuneCountInString(format) != numFmtRunes {
 		return b
 	}
-	b.formatCh <- format
+	b.updateState(func(s *state) {
+		s.updateFormat(format)
+	})
 	return b
 }
 
@@ -139,11 +157,40 @@ func (b *Bar) Format(format string) *Bar {
 // Defaults to 0.25
 // Normally you shouldn't touch this
 func (b *Bar) SetEtaAlpha(a float64) *Bar {
-	if isClosed(b.done) {
-		return b
-	}
-	b.etaAlphaCh <- a
+	b.updateState(func(s *state) {
+		s.etaAlpha = a
+	})
 	return b
+}
+
+// PrependFunc prepends DecoratorFunc
+func (b *Bar) PrependFunc(f DecoratorFunc) *Bar {
+	b.updateState(func(s *state) {
+		s.prependFuncs = append(s.prependFuncs, f)
+	})
+	return b
+}
+
+// AppendFunc appends DecoratorFunc
+func (b *Bar) AppendFunc(f DecoratorFunc) *Bar {
+	b.updateState(func(s *state) {
+		s.appendFuncs = append(s.appendFuncs, f)
+	})
+	return b
+}
+
+// RemoveAllPrependers removes all prepend functions
+func (b *Bar) RemoveAllPrependers() {
+	b.updateState(func(s *state) {
+		s.prependFuncs = nil
+	})
+}
+
+// RemoveAllAppenders removes all append functions
+func (b *Bar) RemoveAllAppenders() {
+	b.updateState(func(s *state) {
+		s.appendFuncs = nil
+	})
 }
 
 // ProxyReader wrapper for io operations, like io.Copy
@@ -153,43 +200,31 @@ func (b *Bar) ProxyReader(r io.Reader) *Reader {
 
 // Incr increments progress bar
 func (b *Bar) Incr(n int) {
-	if n < 1 || isClosed(b.done) {
-		return
-	}
-	b.incrCh <- int64(n)
+	b.IncrWithReFill(n, nil)
 }
 
 // IncrWithReFill increments pb with different fill character
-func (b *Bar) IncrWithReFill(n int, r rune) {
-	if isClosed(b.done) {
+func (b *Bar) IncrWithReFill(n int, refill *Refill) {
+	if n < 1 {
 		return
 	}
-	b.Incr(n)
-	b.refillCh <- &refill{r, int64(n)}
-}
-
-// GetAppenders returns slice of appender DecoratorFunc
-func (b *Bar) GetAppenders() []DecoratorFunc {
-	s := b.getState()
-	return s.appendFuncs
+	select {
+	case b.incrCh <- incrReq{int64(n), refill}:
+	case <-b.done:
+		return
+	}
 }
 
 func (b *Bar) NumOfAppenders() int {
-	return len(b.GetAppenders())
-}
-
-// GetPrependers returns slice of prepender DecoratorFunc
-func (b *Bar) GetPrependers() []DecoratorFunc {
-	s := b.getState()
-	return s.prependFuncs
+	return len(b.getState().appendFuncs)
 }
 
 func (b *Bar) NumOfPrependers() int {
-	return len(b.GetPrependers())
+	return len(b.getState().prependFuncs)
 }
 
-// GetStatistics returs *Statistics, which contains information like Tottal,
-// Current, TimeElapsed and TimePerItemEstimate
+// GetStatistics returs *Statistics, which contains information like
+// Tottal, Current, TimeElapsed and TimePerItemEstimate
 func (b *Bar) GetStatistics() *Statistics {
 	s := b.getState()
 	return newStatistics(&s)
@@ -197,167 +232,122 @@ func (b *Bar) GetStatistics() *Statistics {
 
 // GetID returs id of the bar
 func (b *Bar) GetID() int {
-	state := b.getState()
-	return state.id
+	return b.getState().id
 }
 
-// InProgress returns true, while progress is running
+// InProgress returns true, while progress is running.
 // Can be used as condition in for loop
 func (b *Bar) InProgress() bool {
-	return !isClosed(b.done)
-}
-
-// PrependFunc prepends DecoratorFunc
-func (b *Bar) PrependFunc(f DecoratorFunc) *Bar {
-	if isClosed(b.done) {
-		return b
+	select {
+	case <-b.inProgress:
+		return false
+	default:
+		return true
 	}
-	b.dCommandCh <- &dCommandData{dPrepend, f}
-	return b
 }
 
-// RemoveAllPrependers removes all prepend functions
-func (b *Bar) RemoveAllPrependers() {
-	if isClosed(b.done) {
-		return
-	}
-	b.dCommandCh <- &dCommandData{dPrependZero, nil}
-}
-
-// AppendFunc appends DecoratorFunc
-func (b *Bar) AppendFunc(f DecoratorFunc) *Bar {
-	if isClosed(b.done) {
-		return b
-	}
-	b.dCommandCh <- &dCommandData{dAppend, f}
-	return b
-}
-
-// RemoveAllAppenders removes all append functions
-func (b *Bar) RemoveAllAppenders() {
-	if isClosed(b.done) {
-		return
-	}
-	b.dCommandCh <- &dCommandData{dAppendZero, nil}
-}
-
-// Completed signals to the bar, that process has been completed.
+// Complete signals to the bar, that process has been completed.
 // You should call this method when total is unknown and you've reached the point
-// of process completion.
-func (b *Bar) Completed() {
-	if isClosed(b.done) {
+// of process completion. If you don't call this method, it will be called
+// implicitly, upon p.Stop() call.
+func (b *Bar) Complete() {
+	select {
+	case b.completeReqCh <- struct{}{}:
+	case <-b.done:
 		return
 	}
-	b.completeReqCh <- struct{}{}
 }
 
-func (b *Bar) getState() state {
-	if isClosed(b.done) {
-		return b.state
-	}
-	ch := make(chan state)
-	b.stateReqCh <- ch
-	return <-ch
-}
-
-func (b *Bar) server(id int, total int64, width int, format string, wg *sync.WaitGroup, cancel <-chan struct{}) {
-	var completed bool
-	timeStarted := time.Now()
-	prevStartTime := timeStarted
-	var blockStartTime time.Time
-	barState := state{
-		id:       id,
-		width:    width,
-		format:   barFmtRunes{'[', '=', '>', '-', ']'},
-		etaAlpha: 0.25,
-		total:    total,
-	}
-	if total <= 0 {
-		barState.simpleSpinner = getSpinner()
-	} else {
-		barState.updateFormat(format)
-	}
-	defer func() {
-		b.stop(&barState, width)
-		wg.Done()
-	}()
-	for {
-		select {
-		case i := <-b.incrCh:
-			blockStartTime = time.Now()
-			n := barState.current + i
-			if total > 0 && n > total {
-				barState.current = total
-				completed = true
-				break // break out of select
-			}
-			barState.timeElapsed = time.Since(timeStarted)
-			barState.timePerItem = calcTimePerItemEstimate(barState.timePerItem, prevStartTime, barState.etaAlpha, i)
-			if n == total {
-				completed = true
-			}
-			barState.current = n
-			prevStartTime = blockStartTime
-		case data := <-b.dCommandCh:
-			switch data.action {
-			case dAppend:
-				barState.appendFuncs = append(barState.appendFuncs, data.f)
-			case dAppendZero:
-				barState.appendFuncs = nil
-			case dPrepend:
-				barState.prependFuncs = append(barState.prependFuncs, data.f)
-			case dPrependZero:
-				barState.prependFuncs = nil
-			}
-		case ch := <-b.stateReqCh:
-			ch <- barState
-		case format := <-b.formatCh:
-			barState.updateFormat(format)
-		case barState.width = <-b.widthCh:
-		case barState.refill = <-b.refillCh:
-		case barState.trimLeftSpace = <-b.trimLeftCh:
-		case barState.trimRightSpace = <-b.trimRightCh:
-		case <-b.flushedCh:
-			if completed {
-				return
-			}
-		case <-b.completeReqCh:
-			return
-		case <-b.removeReqCh:
-			return
-		case <-cancel:
-			return
-		}
-	}
-}
-
-func (b *Bar) stop(s *state, width int) {
-	b.state = *s
-	b.width = width
-	close(b.done)
+// Completed: deprecated! Use b.Complete()
+func (b *Bar) Completed() {
+	b.Complete()
 }
 
 func (b *Bar) flushed() {
-	if isClosed(b.done) {
+	select {
+	case b.flushedCh <- struct{}{}:
+	case <-b.done:
 		return
 	}
-	b.flushedCh <- struct{}{}
 }
 
 func (b *Bar) remove() {
-	if isClosed(b.done) {
+	select {
+	case b.removeReqCh <- struct{}{}:
+	case <-b.done:
 		return
 	}
-	b.removeReqCh <- struct{}{}
 }
 
-func (s *state) updateFormat(format string) {
-	if format == "" {
+func (b *Bar) getState() state {
+	select {
+	case s := <-b.stateCh:
+		return s
+	case <-b.done:
+		return b.state
+	}
+}
+
+func (b *Bar) updateState(cb func(*state)) {
+	s := b.getState()
+	cb(&s)
+	select {
+	case b.stateCh <- s:
+	case <-b.done:
 		return
 	}
-	for i, n := 0, 0; len(format) > 0; i++ {
-		s.format[i], n = utf8.DecodeRuneInString(format)
-		format = format[n:]
+}
+
+func (b *Bar) server(wg *sync.WaitGroup, s state) {
+	var incrStartTime time.Time
+
+	defer func() {
+		b.state = s
+		wg.Done()
+		close(b.done)
+	}()
+
+	for {
+		select {
+		case b.stateCh <- s:
+		case s = <-b.stateCh:
+		case r := <-b.incrCh:
+			if s.current == 0 {
+				incrStartTime = time.Now()
+				s.startTime = incrStartTime
+			}
+			n := s.current + r.amount
+			if s.total > 0 && n > s.total {
+				s.current = s.total
+				s.completed = true
+				break // break out of select
+			}
+			s.timeElapsed = time.Since(s.startTime)
+			s.updateTimePerItemEstimate(incrStartTime, r.amount)
+			if n == s.total {
+				s.completed = true
+				close(b.inProgress)
+			}
+			s.current = n
+			if r.refill != nil {
+				r.refill.till = n
+				s.refill = r.refill
+			}
+			incrStartTime = time.Now()
+		case <-b.flushedCh:
+			if s.completed {
+				return
+			}
+		case <-b.completeReqCh:
+			s.completed = true
+			return
+		case <-b.removeReqCh:
+			return
+		case <-b.cancel:
+			s.aborted = true
+			close(b.inProgress)
+			return
+		}
 	}
 }
 
@@ -373,6 +363,19 @@ func (b *Bar) render(rFn func(chan []byte), termWidth int, prependWs, appendWs *
 	}()
 
 	return ch
+}
+
+func (s *state) updateFormat(format string) {
+	for i, n := 0, 0; len(format) > 0; i++ {
+		s.format[i], n = utf8.DecodeRuneInString(format)
+		format = format[n:]
+	}
+}
+
+func (s *state) updateTimePerItemEstimate(incrStartTime time.Time, amount int64) {
+	lastBlockTime := time.Since(incrStartTime) // shorthand for time.Now().Sub(t)
+	lastItemEstimate := float64(lastBlockTime) / float64(amount)
+	s.timePerItem = time.Duration((s.etaAlpha * lastItemEstimate) + (1-s.etaAlpha)*float64(s.timePerItem))
 }
 
 func draw(s *state, termWidth int, prependWs, appendWs *widthSync) []byte {
@@ -419,7 +422,7 @@ func draw(s *state, termWidth int, prependWs, appendWs *widthSync) []byte {
 	fmtBytes := convertFmtRunesToBytes(s.format)
 
 	if s.simpleSpinner != nil {
-		for _, block := range [...][]byte{fmtBytes[rLeft], []byte{s.simpleSpinner()}, fmtBytes[rRight]} {
+		for _, block := range [...][]byte{fmtBytes[rLeft], {s.simpleSpinner()}, fmtBytes[rRight]} {
 			barBlock = append(barBlock, block...)
 		}
 		return concatenateBlocks(buf, prependBlock, leftSpace, barBlock, rightSpace, appendBlock)
@@ -443,7 +446,7 @@ func concatenateBlocks(buf []byte, blocks ...[]byte) []byte {
 	return buf
 }
 
-func fillBar(total, current int64, width int, fmtBytes barFmtBytes, rf *refill) []byte {
+func fillBar(total, current int64, width int, fmtBytes barFmtBytes, rf *Refill) []byte {
 	if width < 2 || total <= 0 {
 		return []byte{}
 	}
@@ -458,8 +461,8 @@ func fillBar(total, current int64, width int, fmtBytes barFmtBytes, rf *refill) 
 
 	if rf != nil {
 		till := percentage(total, rf.till, barWidth)
-		rbytes := make([]byte, utf8.RuneLen(rf.char))
-		utf8.EncodeRune(rbytes, rf.char)
+		rbytes := make([]byte, utf8.RuneLen(rf.Char))
+		utf8.EncodeRune(rbytes, rf.Char)
 		// append refill rune
 		for i := 0; i < till; i++ {
 			buf = append(buf, rbytes...)
@@ -490,8 +493,12 @@ func fillBar(total, current int64, width int, fmtBytes barFmtBytes, rf *refill) 
 
 func newStatistics(s *state) *Statistics {
 	return &Statistics{
+		ID:                  s.id,
+		Completed:           s.completed,
+		Aborted:             s.aborted,
 		Total:               s.total,
 		Current:             s.current,
+		StartTime:           s.startTime,
 		TimeElapsed:         s.timeElapsed,
 		TimePerItemEstimate: s.timePerItem,
 	}
@@ -507,14 +514,8 @@ func convertFmtRunesToBytes(format barFmtRunes) barFmtBytes {
 	return fmtBytes
 }
 
-func calcTimePerItemEstimate(tpie time.Duration, blockStartTime time.Time, alpha float64, items int64) time.Duration {
-	lastBlockTime := time.Since(blockStartTime)
-	lastItemEstimate := float64(lastBlockTime) / float64(items)
-	return time.Duration((alpha * lastItemEstimate) + (1-alpha)*float64(tpie))
-}
-
 func percentage(total, current int64, ratio int) int {
-	if current > total {
+	if total == 0 || current > total {
 		return 0
 	}
 	num := float64(ratio) * float64(current) / float64(total)

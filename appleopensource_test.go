@@ -8,12 +8,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
-// testListTimestamp date of created the testdata from https://opensource.apple.com
-const timestamp = "2017-01-30"
+// timestamp date of created the testdata from https://opensource.apple.com.
+const timestamp = "2019-04-09"
 
 var (
 	wantTarballsIndex []byte
@@ -186,8 +187,9 @@ func TestIndexProject(t *testing.T) {
 				t.Errorf("IndexProject(%v) error = %v, wantErr %v", tt.args.typ, err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("IndexProject(%v) = %v, want %v", tt.args.typ, got, tt.want)
+			if diff := cmp.Diff(got, tt.want); diff != "" {
+				t.Errorf("%s: (-got, +want)\n%s", tt.name, diff)
+				return
 			}
 		})
 	}
@@ -225,8 +227,10 @@ func TestIndexVersion(t *testing.T) {
 				return
 			}
 			got = append(got, byte('\n'))
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("IndexVersion(%v, %v) = %v, want %v", tt.args.project, tt.args.typ, string(got), string(tt.want))
+
+			if diff := cmp.Diff(string(got), string(tt.want)); diff != "" {
+				t.Errorf("%s: (-got, +want)\n%s", tt.name, diff)
+				return
 			}
 		})
 	}
@@ -263,8 +267,9 @@ func TestIndexRelease(t *testing.T) {
 				t.Errorf("IndexRelease(%v, %v) error = %v, wantErr %v", tt.args.platform, tt.args.version, err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("IndexRelease(%v, %v) = %v, want %v", tt.args.platform, tt.args.version, got, tt.want)
+			if diff := cmp.Diff(string(got), string(tt.want)); diff != "" {
+				t.Errorf("%s: (-got, +want)\n%s", tt.name, diff)
+				return
 			}
 		})
 	}

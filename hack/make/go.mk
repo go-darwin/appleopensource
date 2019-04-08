@@ -43,14 +43,15 @@ ifneq ($(GO_OS),darwin)
 	GO_LDFLAGS_STATIC+=-d
 endif
 
-GO_BUILDTAGS=osusergo nectgo
+GO_BUILDTAGS=osusergo
 GO_BUILDTAGS_STATIC=static static_build
 GO_INSTALLSUFFIX_STATIC=netgo
 GO_FLAGS ?= -tags='$(GO_BUILDTAGS)' -ldflags="${GO_LDFLAGS}"
 
+GO_MOD_FLAGS =
 ifneq ($(wildcard go.mod),)  # exist go.mod
-ifeq ($(GO111MODULE),on)
-	GO_FLAGS+=-mod=vendor
+ifneq ($(GO111MODULE),off)
+	GO_MOD_FLAGS=-mod=vendor
 endif
 endif
 endif
@@ -86,6 +87,7 @@ endef
 ## build and install
 
 .PHONY: $(APP)
+$(APP): GO_FLAGS+=${GO_MOD_FLAGS}
 $(APP): VERSION.txt
 	$(call target)
 	GO111MODULE=on CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GO_OS) GOARCH=$(GO_ARCH) go build -v $(strip $(GO_FLAGS)) -o $(APP) $(CMD)
@@ -94,12 +96,14 @@ $(APP): VERSION.txt
 build: $(APP)  ## Builds a dynamic executable or package.
 
 .PHONY: static
+static: GO_FLAGS+=${GO_MOD_FLAGS}
 static: GO_LDFLAGS=${GO_LDFLAGS_STATIC}
 static: GO_BUILDTAGS+=${GO_BUILDTAGS_STATIC}
 static: GO_FLAGS+=-installsuffix ${GO_INSTALLSUFFIX_STATIC}
 static: $(APP)  ## Builds a static executable or package.
 
 .PHONY: install
+install: GO_FLAGS+=${GO_MOD_FLAGS}
 install: GO_LDFLAGS=${GO_LDFLAGS_STATIC}
 install: GO_BUILDTAGS+=${GO_BUILDTAGS_STATIC}
 install: GO_FLAGS+=-installsuffix ${GO_INSTALLSUFFIX_STATIC}
@@ -108,6 +112,9 @@ install:  ## Installs the executable or package.
 	GO111MODULE=on CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GO_OS) GOARCH=$(GO_ARCH) go install -v $(strip $(GO_FLAGS)) $(CMD)
 
 .PHONY: pkg/install
+pkg/install: GO_FLAGS+=${GO_MOD_FLAGS}
+pkg/install: GO_LDFLAGS=
+pkg/install: GO_BUILDTAGS=
 pkg/install:
 	$(call target)
 	GO111MODULE=on CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GO_OS) GOARCH=$(GO_ARCH) go install -v ${GO_APP_PKGS}
@@ -115,6 +122,7 @@ pkg/install:
 ## test, bench and coverage
 
 .PHONY: test
+test: GO_FLAGS+=${GO_MOD_FLAGS}
 test: GO_LDFLAGS=${GO_LDFLAGS_STATIC}
 test: GO_BUILDTAGS+=${GO_BUILDTAGS_STATIC}
 test: GO_FLAGS+=-installsuffix ${GO_INSTALLSUFFIX_STATIC}
@@ -123,6 +131,7 @@ test:  ## Runs package test including race condition.
 	@GO111MODULE=on $(GO_TEST) -v -race $(strip $(GO_FLAGS)) -run=$(GO_TEST_FUNC) $(GO_TEST_PKGS)
 
 .PHONY: bench
+bench: GO_FLAGS+=${GO_MOD_FLAGS}
 bench: GO_LDFLAGS=${GO_LDFLAGS_STATIC}
 bench: GO_BUILDTAGS+=${GO_BUILDTAGS_STATIC}
 bench: GO_FLAGS+=-installsuffix ${GO_INSTALLSUFFIX_STATIC}
@@ -141,9 +150,13 @@ bench/trace:  ## Take a package benchmark with take a trace profiling.
 	GO111MODULE=on GODEBUG=allocfreetrace=1 ./bench-trace.test -test.run=none -test.bench=$(GO_BENCH_FUNC) -test.benchmem -test.benchtime=10ms 2> trace.log
 
 .PHONY: coverage
+coverage: GO_FLAGS+=${GO_MOD_FLAGS}
+coverage: GO_LDFLAGS=${GO_LDFLAGS_STATIC}
+coverage: GO_BUILDTAGS+=${GO_BUILDTAGS_STATIC}
+coverage: GO_FLAGS+=-installsuffix ${GO_INSTALLSUFFIX_STATIC}
 coverage:  ## Takes packages test coverage.
 	$(call target)
-	GO111MODULE=on $(GO_TEST) -v -race $(strip $(GO_FLAGS)) -covermode=atomic -coverpkg=$(PKG)/... -coverprofile=coverage.out $(GO_PKGS)
+	GO111MODULE=on $(GO_TEST) -v -race $(strip $(GO_FLAGS)) -covermode=atomic -coverpkg=$(PKG)/pkg/... -coverprofile=coverage.out $(GO_PKGS)
 
 $(GO_PATH)/bin/go-junit-report:
 	@GO111MODULE=off go get -u github.com/jstemmer/go-junit-report
@@ -152,6 +165,7 @@ $(GO_PATH)/bin/go-junit-report:
 cmd/go-junit-report: $(GO_PATH)/bin/go-junit-report  # go get 'go-junit-report' binary
 
 .PHONY: coverage/ci
+coverage/ci: GO_FLAGS+=${GO_MOD_FLAGS}
 coverage/ci: GO_LDFLAGS=${GO_LDFLAGS_STATIC}
 coverage/ci: GO_BUILDTAGS+=${GO_BUILDTAGS_STATIC}
 coverage/ci: GO_FLAGS+=-installsuffix ${GO_INSTALLSUFFIX_STATIC}
@@ -221,23 +235,23 @@ mod/graph:  ## Prints the module requirement graph with replacements applied.
 .PHONY: mod/clean
 mod/clean:  ## Cleanups go.sum and vendor/modules.txt files.
 	$(call target)
-	@find vendor -type f \( -name '*_test.go' -o -name '.gitignore' -o -name '*appveyor.yml' -o -name '.travis.yml' -o -name 'circle.yml' -o -name '*.json' -o -name '*.flake8' -o -name 'generate-flag-types' -o -name 'runtests' \) -print -exec rm -f {} ";"
-	@find vendor -type d \( -name 'testdata' -o -name 'examples' -o -name '.gx' -o -name 'autocomplete' -o -name '.circleci' \) -print | xargs rm -rf
+	@find vendor -type f \( -name '*_test.go' -o -name '.gitignore' -o -name '*appveyor.yml' -o -name '.travis.yml' -o -name 'circle.yml' -o -name '*.json' -o -name '*.flake8' -o -name 'generate-flag-types' -o -name 'runtests' \) -delete
+	@find vendor -type d \( -name 'testdata' -o -name 'examples' -o -name '.gx' -o -name 'autocomplete' -o -name '.circleci' \) -delete
 
 .PHONY: mod/install
-mod/install: mod/tidy mod/vendor
+mod/install: mod/tidy mod/vendor mod/clean
 mod/install:  ## Install the module vendor package as an object file.
 	$(call target)
 	@GO111MODULE=off go install -v $(strip $(GO_FLAGS)) $(GO_VENDOR_PKGS) || GO111MODULE=on go install -mod=vendor -v $(strip $(GO_FLAGS)) $(GO_VENDOR_PKGS)
 
 .PHONY: mod/update
 mod/update: mod/get mod/tidy mod/vendor mod/install  ## Updates all of vendor packages.
-	@sed -i ':a;N;$$!ba;s|go 1\.12\n\n||g' go.mod
+	@GO111MODULE=on go mod edit -go 1.12
 
 .PHONY: mod
 mod: mod/init mod/tidy mod/vendor mod/install
 mod:  ## Updates the vendoring directory using go mod.
-	@sed -i ':a;N;$$!ba;s|go 1\.12\n\n||g' go.mod
+	@GO111MODULE=on go mod edit -go 1.12
 
 
 ## clean

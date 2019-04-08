@@ -221,7 +221,8 @@ mod/graph:  ## Prints the module requirement graph with replacements applied.
 .PHONY: mod/clean
 mod/clean:  ## Cleanups go.sum and vendor/modules.txt files.
 	$(call target)
-	@$(RM) -r go.sum $(shell find vendor -maxdepth 1 -path "vendor/*" -type d)
+	@find vendor -type f \( -name '*_test.go' -o -name '.gitignore' -o -name '*appveyor.yml' -o -name '.travis.yml' -o -name 'circle.yml' -o -name '*.json' -o -name '*.flake8' -o -name 'generate-flag-types' -o -name 'runtests' \) -print -exec rm -f {} ";"
+	@find vendor -type d \( -name 'testdata' -o -name 'examples' -o -name '.gx' -o -name 'autocomplete' -o -name '.circleci' \) -print | xargs rm -rf
 
 .PHONY: mod/install
 mod/install: mod/tidy mod/vendor

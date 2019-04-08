@@ -6,7 +6,7 @@ package main
 
 import (
 	"github.com/urfave/cli"
-	"github.com/zchee/appleopensource"
+	"github.com/zchee/appleopensource/pkg/appleopensource"
 )
 
 var fetchCommand = cli.Command{

@@ -1,10 +1,12 @@
-// Copyright 2016 Koichi Shiraishi. All rights reserved.
+// Copyright 2016 The appleopensource Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package appleopensource
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestPlatform_String(t *testing.T) {
 	tests := []struct {

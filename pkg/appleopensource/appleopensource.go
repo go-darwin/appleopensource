@@ -1,4 +1,4 @@
-// Copyright 2016 Koichi Shiraishi. All rights reserved.
+// Copyright 2016 The appleopensource Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -10,15 +10,16 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/blang/semver"
 )
 
-const root = "https://opensource.apple.com/"
+const rooturi = "https://opensource.apple.com/"
 
-var rootURL, _ = url.Parse(root)
+var rootURL, _ = url.Parse(rooturi)
 
 // ResourceType represents a resource type.
 type ResourceType int
@@ -39,7 +40,7 @@ func (r ResourceType) String() string {
 	case SourceResource:
 		return "source"
 	default:
-		return ""
+		return strconv.FormatInt(int64(r), 10)
 	}
 }
 
@@ -145,12 +146,12 @@ type Project struct {
 
 // Tarball return the tarballs resource download uri.
 func (p *Project) Tarball() string {
-	return root + path.Join(TarballsResource.String(), p.Name, fmt.Sprintf("%s-%s.tar.gz", p.Name, p.Version))
+	return rooturi + path.Join(TarballsResource.String(), p.Name, fmt.Sprintf("%s-%s.tar.gz", p.Name, p.Version))
 }
 
 // Source return the source resource page uri.
 func (p *Project) Source() string {
-	return root + path.Join(SourceResource.String(), p.Name, fmt.Sprintf("%s-%s", p.Name, p.Version))
+	return rooturi + path.Join(SourceResource.String(), p.Name, fmt.Sprintf("%s-%s", p.Name, p.Version))
 }
 
 // ListProject parses the project list HTML DOM, and return the project list.

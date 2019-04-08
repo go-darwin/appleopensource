@@ -1,4 +1,4 @@
-// Copyright 2016 Koichi Shiraishi. All rights reserved.
+// Copyright 2016 The appleopensource Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -56,24 +56,24 @@ func TestResourceType_String(t *testing.T) {
 		want string
 	}{
 		{
-			name: "tarballs",
+			name: "Tarballs",
 			r:    TarballsResource,
 			want: "tarballs",
 		},
 		{
-			name: "source",
+			name: "Source",
 			r:    SourceResource,
 			want: "source",
 		},
 		{
-			name: "empty",
+			name: "NotSet",
 			r:    0,
-			want: "",
+			want: "0",
 		},
 		{
-			name: "unknown",
+			name: "Unknown",
 			r:    3,
-			want: "",
+			want: "3",
 		},
 	}
 	for _, tt := range tests {

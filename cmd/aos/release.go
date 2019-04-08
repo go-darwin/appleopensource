@@ -15,7 +15,7 @@ import (
 
 	"github.com/urfave/cli"
 
-	"github.com/zchee/appleopensource"
+	"github.com/zchee/appleopensource/pkg/appleopensource"
 	"github.com/zchee/appleopensource/pkg/fs"
 )
 

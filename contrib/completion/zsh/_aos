@@ -1,4 +1,4 @@
-#compdef appleopensource
+#compdef aos
 
 # -----------------------------------------------------------------------------
 # The BSD-3-Clause License
@@ -33,7 +33,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # -----------------------------------------------------------------------------
 
-function _appleopensource() {
+function _aos() {
   local context curcontext=$curcontext state line ret=1
   declare -A opt_args
 
@@ -48,7 +48,7 @@ function _appleopensource() {
   )
 
   _arguments -C \
-    "1: :{_describe 'appleopensource subcommand' commands}" \
+    "1: :{_describe 'aos subcommand' commands}" \
     '*:: :->args' \
     && ret=0
 
@@ -83,7 +83,7 @@ function _appleopensource() {
 
         (versions)
           _arguments \
-            "1:project:($(appleopensource list))" \
+            "1:project:($(aos list))" \
             {-t,--tarballs}'[List the tarballs resource versions]' \
             {-s,--source}'[List the source resource versions]' \
             {-n,--no-cache}'[Disable the cache]' \
@@ -116,6 +116,6 @@ function _appleopensource() {
   return ret
 }
 
-_appleopensource "$@"
+_aos "$*"
 
 # vim:ft=zsh:et:sts=2:sw=2

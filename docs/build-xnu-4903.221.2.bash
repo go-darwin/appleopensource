@@ -46,22 +46,25 @@ curl https://opensource.apple.com/tarballs/libdispatch/libdispatch-1008.220.2.ta
 
 # Build and install ctf utilities. This adds the ctf tools to
 # ${TOOLCHAINPATH}/usr/local/bin.
+(
 cd dtrace-284.200.15
 mkdir -p obj dst sym
 xcodebuild install -target ctfconvert -target ctfdump -target ctfmerge -UseModernBuildSystem=NO ARCHS="x86_64" SRCROOT="${PWD}" OBJROOT="${PWD}/obj" SYMROOT="${PWD}/sym" DSTROOT="${PWD}/dst"
 # TODO: Get the XcodeDefault.toolchain path programmatically.
 sudo ditto "${PWD}/dst/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain" "${TOOLCHAINPATH}"
-cd ..
+)
 
 # Install AvailabilityVersions. This writes to ${SDKPATH}/usr/local/libexec.
 cd AvailabilityVersions-33.200.4
+(
 mkdir -p dst
 make install SRCROOT="${PWD}" DSTROOT="${PWD}/dst"
 sudo ditto "${PWD}/dst/usr/local" "${SDKPATH}/usr/local"
-cd ..
+)
 
 # Install the XNU headers we'll need for libdispatch. This OVERWRITES files in
 # MacOSX10.14.sdk!
+(
 cd xnu-4903.221.2
 mkdir -p BUILD.hdrs/obj BUILD.hdrs/sym BUILD.hdrs/dst
 make installhdrs SDKROOT=macosx ARCH_CONFIGS=X86_64 SRCROOT="${PWD}" OBJROOT="${PWD}/BUILD.hdrs/obj" SYMROOT="${PWD}/BUILD.hdrs/sym" DSTROOT="${PWD}/BUILD.hdrs/dst"
@@ -69,23 +72,24 @@ xcodebuild installhdrs -project libsyscall/Libsyscall.xcodeproj -sdk macosx -Use
 # Set permissions correctly before dittoing over MacOSX10.13.sdk.
 sudo chown -R root:wheel BUILD.hdrs/dst/
 sudo ditto BUILD.hdrs/dst "${SDKPATH}"
-cd ..
+)
 
 # Install libplatform headers to ${SDKPATH}/usr/local/include.
+(
 cd libplatform-177.200.16
 sudo ditto "${PWD}/include" "${SDKPATH}/usr/local/include"
 sudo ditto "${PWD}/private"  "${SDKPATH}/usr/local/include"
-cd ..
+)
 
 # Build and install libdispatch's libfirehose_kernel target to
 # ${SDKPATH}/usr/local.
+(
 cd libdispatch-1008.220.2
 mkdir -p obj sym dst
 xcodebuild install -project libdispatch.xcodeproj -target libfirehose_kernel -sdk macosx -UseModernBuildSystem=NO ARCHS="x86_64" SRCROOT="${PWD}" OBJROOT="${PWD}/obj" SYMROOT="${PWD}/sym" DSTROOT="${PWD}/dst"
 sudo ditto "${PWD}/dst/usr/local" "${SDKPATH}/usr/local"
-cd ..
+)
 
 # Build XNU.
 cd xnu-4903.221.2
 make SDKROOT=macosx ARCH_CONFIGS=X86_64 KERNEL_CONFIGS="DEBUG"
-

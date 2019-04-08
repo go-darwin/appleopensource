@@ -15,8 +15,9 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/pkgutil/osutil"
 	"github.com/vbauerster/mpb"
+
+	"github.com/zchee/appleopensource/pkg/fs"
 )
 
 var p = mpb.New()
@@ -97,7 +98,7 @@ func fetch(wg *sync.WaitGroup, dst, uri string) error {
 
 // Fetch fetchs the uri file to dst with multiple progress bars.
 func Fetch(dst string, uri ...string) (err error) {
-	if !osutil.IsDirExist(dst) {
+	if !fs.IsDirExist(dst) {
 		return errors.Wrapf(err, "no such %s dist directory", dst)
 	}
 

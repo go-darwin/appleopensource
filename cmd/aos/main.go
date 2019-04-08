@@ -12,13 +12,6 @@ import (
 	"github.com/urfave/cli"
 )
 
-var (
-	// version will be increased when upgrading release version.
-	version = "0.0.1"
-	// gitCommit will be the hash that the binary was built from and will be populated by the Makefile
-	gitCommit = "HEAD"
-)
-
 var noCache bool
 
 func initCmd(ctx *cli.Context) error {

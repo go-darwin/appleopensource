@@ -9,8 +9,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pkgutil/osutil"
 	xdgbasedir "github.com/zchee/go-xdgbasedir"
+
+	"github.com/zchee/appleopensource/pkg/fs"
 )
 
 var rootCacheDir = os.Getenv("APPLEOPENSOURCE_CACHE_DIR")
@@ -20,7 +21,7 @@ func cacheDir() string {
 	if rootCacheDir == "" {
 		rootCacheDir = filepath.Join(xdgbasedir.CacheHome(), "appleopensource")
 	}
-	if err := osutil.MkdirAll(rootCacheDir, 0700); err != nil {
+	if err := fs.MkdirAll(rootCacheDir, 0700); err != nil {
 		log.Fatal(err)
 	}
 

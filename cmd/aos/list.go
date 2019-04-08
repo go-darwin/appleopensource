@@ -10,9 +10,10 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/pkgutil/osutil"
 	"github.com/urfave/cli"
+
 	"github.com/zchee/appleopensource"
+	"github.com/zchee/appleopensource/pkg/fs"
 )
 
 var listCommand = cli.Command{
@@ -43,7 +44,7 @@ func initList(ctx *cli.Context) error {
 	listSource = ctx.Bool("source")
 	listTarballs = ctx.Bool("tarballs")
 
-	if err := osutil.MkdirAll(listCachedir, 0700); err != nil {
+	if err := fs.MkdirAll(listCachedir, 0700); err != nil {
 		return err
 	}
 	return nil
@@ -52,7 +53,7 @@ func initList(ctx *cli.Context) error {
 // index return the opensource.apple.com project index, and caches the HTML DOM tree into cacheDir.
 func indexList(ctx *cli.Context, typ appleopensource.ResourceType) ([]byte, error) {
 	fname := filepath.Join(listCachedir, fmt.Sprintf("%s.html", typ))
-	if osutil.IsExist(fname) && !noCache {
+	if fs.IsExist(fname) && !noCache {
 		return ioutil.ReadFile(fname)
 	}
 

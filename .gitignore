@@ -28,5 +28,4 @@ _testmain.go
 *.out
 
 # binary
-appleopensource
-!cmd/appleopensource
+/aos

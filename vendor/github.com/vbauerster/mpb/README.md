@@ -3,141 +3,115 @@
 [![GoDoc](https://godoc.org/github.com/vbauerster/mpb?status.svg)](https://godoc.org/github.com/vbauerster/mpb)
 [![Build Status](https://travis-ci.org/vbauerster/mpb.svg?branch=master)](https://travis-ci.org/vbauerster/mpb)
 [![Go Report Card](https://goreportcard.com/badge/github.com/vbauerster/mpb)](https://goreportcard.com/report/github.com/vbauerster/mpb)
-[![cover.run go](https://cover.run/go/github.com/vbauerster/mpb.svg)](https://cover.run/go/github.com/vbauerster/mpb)
+[![codecov](https://codecov.io/gh/vbauerster/mpb/branch/master/graph/badge.svg)](https://codecov.io/gh/vbauerster/mpb)
 
 **mpb** is a Go lib for rendering progress bars in terminal applications.
 
-It is inspired by [uiprogress](https://github.com/gosuri/uiprogress) library,
-but unlike the last one, implementation is mutex free, following Go's idiom:
-
-> Don't communicate by sharing memory, share memory by communicating.
-
 ## Features
 
-* __Multiple Bars__: mpb can render multiple progress bars that can be tracked concurrently
-* __Cancellable__: cancel rendering goroutine at any time
-* __Dynamic Addition__:  Add additional progress bar at any time
-* __Dynamic Removal__:  Remove rendering progress bar at any time
-* __Dynamic Sorting__:  Sort bars as you wish
-* __Dynamic Resize__:  Resize bars on terminal width change
-* __Custom Decorator Functions__: Add custom functions around the bar along with helper functions
-* __Dynamic Decorator's Width Sync__:  Sync width among decorator group (available since v2)
-* __Predefined Decoratros__: Elapsed time, [Ewmaest](https://github.com/dgryski/trifles/tree/master/ewmaest) based ETA, Percentage, Bytes counter
+* __Multiple Bars__: Multiple progress bars are supported
+* __Dynamic Total__: [Set total](https://github.com/vbauerster/mpb/issues/9#issuecomment-344448984) while bar is running
+* __Dynamic Add/Remove__: Dynamically add or remove bars
+* __Cancellation__: Cancel whole rendering process
+* __Predefined Decorators__: Elapsed time, [ewma](https://github.com/VividCortex/ewma) based ETA, Percentage, Bytes counter
+* __Decorator's width sync__:  Synchronized decorator's width among multiple bars
 
 ## Installation
 
-To get the package, execute:
-
 ```sh
-go get gopkg.in/vbauerster/mpb.v2
+go get github.com/vbauerster/mpb
 ```
+
+_Note:_ it is preferable to go get from github.com, rather than gopkg.in. See issue [#11](https://github.com/vbauerster/mpb/issues/11).
 
 ## Usage
 
-Following is the simplest use case:
-
+#### [Rendering single bar](examples/singleBar/main.go)
 ```go
-	// Star mpb's rendering goroutine.
-	p := mpb.New()
-	// Set custom width for every bar, which mpb will render
-	// The default one is 80
-	p.SetWidth(100)
-	// Set custom format for every bar, the default one is "[=>-]"
-	p.Format("╢▌▌░╟")
-	// Set custom refresh rate, the default one is 100 ms
-	p.RefreshRate(120 * time.Millisecond)
+    p := mpb.New(
+        // override default (80) width
+        mpb.WithWidth(64),
+        // override default 120ms refresh rate
+        mpb.WithRefreshRate(180*time.Millisecond),
+    )
 
-	// Add a bar. You're not limited to just one bar, add many if you need.
-	bar := p.AddBar(100).PrependName("Single Bar:", 0, 0).AppendPercentage(5, 0)
-
-	for i := 0; i < 100; i++ {
-		time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
-		bar.Incr(1) // increment progress bar
-	}
-
-	// Don't forget to stop mpb's rendering goroutine
-	p.Stop()
+    total := 100
+    name := "Single Bar:"
+    // adding a single bar
+    bar := p.AddBar(int64(total),
+        // override default "[=>-]" style
+        mpb.BarStyle("╢▌▌░╟"),
+        mpb.PrependDecorators(
+            // display our name with one space on the right
+            decor.Name(name, decor.WC{W: len(name) + 1, C: decor.DidentRight}),
+            // replace ETA decorator with "done" message, OnComplete event
+            decor.OnComplete(
+                // ETA decorator with ewma age of 60, and width reservation of 4
+                decor.EwmaETA(decor.ET_STYLE_GO, 60, decor.WC{W: 4}), "done",
+            ),
+        ),
+        mpb.AppendDecorators(decor.Percentage()),
+    )
+    // simulating some work
+    max := 100 * time.Millisecond
+    for i := 0; i < total; i++ {
+        start := time.Now()
+        time.Sleep(time.Duration(rand.Intn(10)+1) * max / 10)
+        // ewma based decorators require work duration measurement
+        bar.IncrBy(1, time.Since(start))
+    }
+    // wait for our bar to complete and flush
+    p.Wait()
 ```
 
-Running [this](example/singleBar/main.go), will produce:
-
-![gif](example/gifs/single.gif)
-
-However **mpb** was designed with concurrency in mind. Each new bar renders in its
-own goroutine, therefore adding multiple bars is easy and safe:
-
+#### [Rendering multiple bars](examples/simple/main.go)
 ```go
-	var wg sync.WaitGroup
-	p := mpb.New()
-	wg.Add(3) // add wg delta
-	for i := 0; i < 3; i++ {
-		name := fmt.Sprintf("Bar#%d:", i)
-		bar := p.AddBar(100).
-			PrependName(name, len(name), 0).
-			// Prepend Percentage decorator and sync width
-			PrependPercentage(3, mpb.DwidthSync|mpb.DextraSpace).
-			// Append ETA and don't sync width
-			AppendETA(2, 0)
-		go func() {
-			defer wg.Done()
-			// you can p.AddBar() here, but ordering will be non deterministic
-			// if you still need p.AddBar() here and maintain ordering, use
-			// (*mpb.Progress).BeforeRenderFunc(f mpb.BeforeRender)
-			for i := 0; i < 100; i++ {
-				time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
-				bar.Incr(1)
-			}
-		}()
-	}
-	wg.Wait() // Wait for goroutines to finish
-	p.Stop()  // Stop mpb's rendering goroutine
+    var wg sync.WaitGroup
+    p := mpb.New(mpb.WithWaitGroup(&wg))
+    total, numBars := 100, 3
+    wg.Add(numBars)
+
+    for i := 0; i < numBars; i++ {
+        name := fmt.Sprintf("Bar#%d:", i)
+        bar := p.AddBar(int64(total),
+            mpb.PrependDecorators(
+                // simple name decorator
+                decor.Name(name),
+                // decor.DSyncWidth bit enables column width synchronization
+                decor.Percentage(decor.WCSyncSpace),
+            ),
+            mpb.AppendDecorators(
+                // replace ETA decorator with "done" message, OnComplete event
+                decor.OnComplete(
+                    // ETA decorator with ewma age of 60
+                    decor.EwmaETA(decor.ET_STYLE_GO, 60), "done",
+                ),
+            ),
+        )
+        // simulating some work
+        go func() {
+            defer wg.Done()
+            max := 100 * time.Millisecond
+            for i := 0; i < total; i++ {
+                start := time.Now()
+                time.Sleep(time.Duration(rand.Intn(10)+1) * max / 10)
+                // ewma based decorators require work duration measurement
+                bar.IncrBy(1, time.Since(start))
+            }
+        }()
+    }
+    // wait for all bars to complete and flush
+    p.Wait()
 ```
 
-![simple.gif](example/gifs/simple.gif)
+#### [Dynamic total](examples/dynTotal/main.go)
 
-The source code: [example/simple/main.go](example/simple/main.go)
+![dynamic total](examples/gifs/godEMrCZmJkHYH1X9dN4Nm0U7.svg)
 
-### Cancel
+#### [Complex example](examples/complex/main.go)
 
-To cancel use either
-[WithCancel](https://godoc.org/github.com/vbauerster/mpb#Progress.WithCancel) or
-[WithContext](https://godoc.org/github.com/vbauerster/mpb#Progress.WithContext)
-method. The last one requires Go 1.7
+![complex](examples/gifs/wHzf1M7sd7B3zVa2scBMnjqRf.svg)
 
-![cancel.gif](example/gifs/cancel.gif)
+#### [Bytes counters](examples/io/single/main.go)
 
-The source code: [example/cancel/main.go](example/cancel/main.go)
-
-### Removing bar
-
-![remove.gif](example/gifs/remove.gif)
-
-The source code: [example/remove/main.go](example/remove/main.go)
-
-### Sorting bars by progress
-
-![sort.gif](example/gifs/sort.gif)
-
-The source code: [example/sort/main.go](example/sort/main.go)
-
-### Resizing bars on terminal width change
-
-![resize.gif](example/gifs/resize.gif)
-
-The source code: [example/prependETA/main.go](example/prependETA/main.go)
-
-### Multiple io
-
-![io-multiple.gif](example/gifs/io-multiple.gif)
-
-The source code: [example/io/multiple/main.go](example/io/multiple/main.go)
-
-### Custom Decorators
-
-Refer to godoc [example](https://godoc.org/github.com/vbauerster/mpb#example-Bar-PrependFunc).
-
-## License
-
-[BSD 3-Clause](https://opensource.org/licenses/BSD-3-Clause)
-
-The typeface used in screen shots: [Iosevka](https://be5invis.github.io/Iosevka)
+![byte counters](examples/gifs/hIpTa3A5rQz65ssiVuRJu87X6.svg)

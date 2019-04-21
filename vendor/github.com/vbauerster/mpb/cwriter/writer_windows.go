@@ -3,12 +3,12 @@
 package cwriter
 
 import (
-	"fmt"
 	"io"
+	"strings"
 	"syscall"
 	"unsafe"
 
-	"github.com/mattn/go-isatty"
+	isatty "github.com/mattn/go-isatty"
 )
 
 var kernel32 = syscall.NewLazyDLL("kernel32.dll")
@@ -50,14 +50,11 @@ type FdWriter interface {
 	Fd() uintptr
 }
 
-func (w *Writer) clearLines() {
+func (w *Writer) clearLines() error {
 	f, ok := w.out.(FdWriter)
 	if ok && !isatty.IsTerminal(f.Fd()) {
-		for i := 0; i < w.lineCount; i++ {
-			fmt.Fprintf(w.out, "%c[%dA", ESC, 1) // move the cursor up
-			fmt.Fprintf(w.out, "%c[2K\r", ESC)   // clear the line
-		}
-		return
+		_, err := io.WriteString(w.out, strings.Repeat(clearCursorAndLine, w.lineCount))
+		return err
 	}
 	fd := f.Fd()
 	var info consoleScreenBufferInfo
@@ -76,15 +73,5 @@ func (w *Writer) clearLines() {
 		count = dword(info.size.x)
 		procFillConsoleOutputCharacter.Call(fd, uintptr(' '), uintptr(count), *(*uintptr)(unsafe.Pointer(&cursor)), uintptr(unsafe.Pointer(&w)))
 	}
-}
-
-// GetTermSize returns the dimensions of the given terminal.
-// the code is stolen from "golang.org/x/crypto/ssh/terminal"
-func GetTermSize() (width, height int, err error) {
-	var info consoleScreenBufferInfo
-	_, _, e := syscall.Syscall(procGetConsoleScreenBufferInfo.Addr(), 2, uintptr(syscall.Stdout), uintptr(unsafe.Pointer(&info)), 0)
-	if e != 0 {
-		return 0, 0, error(e)
-	}
-	return int(info.size.x), int(info.size.y), nil
+	return nil
 }

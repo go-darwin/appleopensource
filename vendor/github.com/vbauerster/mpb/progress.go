@@ -1,374 +1,267 @@
 package mpb
 
 import (
+	"container/heap"
+	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"sync"
 	"time"
-	"unicode/utf8"
 
 	"github.com/vbauerster/mpb/cwriter"
 )
 
-type (
-	// BeforeRender is a func, which gets called before render process
-	BeforeRender func([]*Bar)
-
-	widthSync struct {
-		listen []chan int
-		result []chan int
-	}
-
-	// progress config, all fieals are adjustable by user
-	pConf struct {
-		bars []*Bar
-
-		width        int
-		format       string
-		rr           time.Duration
-		cw           *cwriter.Writer
-		ticker       *time.Ticker
-		beforeRender BeforeRender
-
-		shutdownNotifier chan struct{}
-		cancel           <-chan struct{}
-	}
-)
-
 const (
 	// default RefreshRate
-	prr = 100 * time.Millisecond
+	prr = 120 * time.Millisecond
 	// default width
 	pwidth = 80
-	// default format
-	pformat = "[=>-]"
-	// number of format runes for bar
-	numFmtRunes = 5
 )
 
 // Progress represents the container that renders Progress bars
 type Progress struct {
-	// WaitGroup for internal rendering sync
-	wg *sync.WaitGroup
-
-	done      chan struct{}
-	ops       chan func(*pConf)
-	stopReqCh chan struct{}
-
-	// following is used after (*Progress.done) is closed
-	conf pConf
+	wg           *sync.WaitGroup
+	uwg          *sync.WaitGroup
+	operateState chan func(*pState)
+	done         chan struct{}
 }
 
-// New creates new Progress instance, which will orchestrate bars rendering
-// process. It acceepts context.Context, for cancellation.
-// If you don't plan to cancel, it is safe to feed with nil
-func New() *Progress {
-	p := &Progress{
-		wg:        new(sync.WaitGroup),
-		done:      make(chan struct{}),
-		ops:       make(chan func(*pConf)),
-		stopReqCh: make(chan struct{}),
+type pState struct {
+	bHeap           *priorityQueue
+	shutdownPending []*Bar
+	heapUpdated     bool
+	zeroWait        bool
+	idCounter       int
+	width           int
+	format          string
+	rr              time.Duration
+	cw              *cwriter.Writer
+	pMatrix         map[int][]chan int
+	aMatrix         map[int][]chan int
+
+	// following are provided/overrided by user
+	ctx              context.Context
+	uwg              *sync.WaitGroup
+	manualRefreshCh  <-chan time.Time
+	shutdownNotifier chan struct{}
+	waitBars         map[*Bar]*Bar
+	debugOut         io.Writer
+}
+
+// New creates new Progress instance, which orchestrates bars rendering
+// process. Accepts mpb.ProgressOption funcs for customization.
+func New(options ...ProgressOption) *Progress {
+	pq := make(priorityQueue, 0)
+	heap.Init(&pq)
+	s := &pState{
+		ctx:      context.Background(),
+		bHeap:    &pq,
+		width:    pwidth,
+		cw:       cwriter.New(os.Stdout),
+		rr:       prr,
+		waitBars: make(map[*Bar]*Bar),
+		debugOut: ioutil.Discard,
 	}
-	go p.server(pConf{
-		bars:   make([]*Bar, 0, 3),
-		width:  pwidth,
-		format: pformat,
-		cw:     cwriter.New(os.Stdout),
-		rr:     prr,
-		ticker: time.NewTicker(prr),
-	})
+
+	for _, opt := range options {
+		if opt != nil {
+			opt(s)
+		}
+	}
+
+	p := &Progress{
+		uwg:          s.uwg,
+		wg:           new(sync.WaitGroup),
+		operateState: make(chan func(*pState)),
+		done:         make(chan struct{}),
+	}
+	go p.serve(s)
 	return p
 }
 
-// WithCancel cancellation via channel.
-// You have to call p.Stop() anyway, after cancel.
-// Pancis, if nil channel is passed.
-func (p *Progress) WithCancel(ch <-chan struct{}) *Progress {
-	if ch == nil {
-		panic("nil cancel channel")
-	}
-	return updateConf(p, func(c *pConf) {
-		c.cancel = ch
-	})
-}
-
-// SetWidth overrides default (80) width of bar(s).
-func (p *Progress) SetWidth(width int) *Progress {
-	if width < 2 {
-		return p
-	}
-	return updateConf(p, func(c *pConf) {
-		c.width = width
-	})
-}
-
-// SetOut sets underlying writer of progress. Default one is os.Stdout.
-func (p *Progress) SetOut(w io.Writer) *Progress {
-	if w == nil {
-		return p
-	}
-	return updateConf(p, func(c *pConf) {
-		c.cw.Flush()
-		c.cw = cwriter.New(w)
-	})
-}
-
-// RefreshRate overrides default (100ms) refresh rate value
-func (p *Progress) RefreshRate(d time.Duration) *Progress {
-	return updateConf(p, func(c *pConf) {
-		c.ticker.Stop()
-		c.ticker = time.NewTicker(d)
-		c.rr = d
-	})
-}
-
-// BeforeRenderFunc accepts a func, which gets called before render process.
-func (p *Progress) BeforeRenderFunc(f BeforeRender) *Progress {
-	return updateConf(p, func(c *pConf) {
-		c.beforeRender = f
-	})
-}
-
 // AddBar creates a new progress bar and adds to the container.
-func (p *Progress) AddBar(total int64) *Bar {
-	return p.AddBarWithID(0, total)
+func (p *Progress) AddBar(total int64, options ...BarOption) *Bar {
+	return p.Add(total, newDefaultBarFiller(), options...)
 }
 
-// AddBarWithID creates a new progress bar and adds to the container.
-func (p *Progress) AddBarWithID(id int, total int64) *Bar {
-	result := make(chan *Bar, 1)
-	op := func(c *pConf) {
-		bar := newBar(id, total, c.width, c.format, p.wg, c.cancel)
-		c.bars = append(c.bars, bar)
-		p.wg.Add(1)
-		result <- bar
+// AddSpinner creates a new spinner bar and adds to the container.
+func (p *Progress) AddSpinner(total int64, alignment SpinnerAlignment, options ...BarOption) *Bar {
+	filler := &spinnerFiller{
+		frames:    defaultSpinnerStyle,
+		alignment: alignment,
 	}
+	return p.Add(total, filler, options...)
+}
+
+// Add creates a bar which renders itself by provided filler.
+func (p *Progress) Add(total int64, filler Filler, options ...BarOption) *Bar {
+	if filler == nil {
+		filler = newDefaultBarFiller()
+	}
+	p.wg.Add(1)
+	result := make(chan *Bar)
 	select {
-	case p.ops <- op:
+	case p.operateState <- func(s *pState) {
+		b := newBar(s.ctx, p.wg, filler, s.idCounter, s.width, total, options...)
+		if b.runningBar != nil {
+			s.waitBars[b.runningBar] = b
+		} else {
+			heap.Push(s.bHeap, b)
+			s.heapUpdated = true
+		}
+		s.idCounter++
+		result <- b
+	}:
 		return <-result
 	case <-p.done:
+		p.wg.Done()
 		return nil
 	}
 }
 
-// RemoveBar removes bar at any time.
-func (p *Progress) RemoveBar(b *Bar) bool {
-	result := make(chan bool, 1)
-	op := func(c *pConf) {
-		var ok bool
-		for i, bar := range c.bars {
-			if bar == b {
-				c.bars = append(c.bars[:i], c.bars[i+1:]...)
-				bar.remove()
-				ok = true
-				break
-			}
-		}
-		result <- ok
-	}
+// Abort is only effective while bar progress is running, it means
+// remove bar now without waiting for its completion. If bar is already
+// completed, there is nothing to abort. If you need to remove bar
+// after completion, use BarRemoveOnComplete BarOption.
+func (p *Progress) Abort(b *Bar, remove bool) {
 	select {
-	case p.ops <- op:
-		return <-result
+	case p.operateState <- func(s *pState) {
+		if b.index < 0 {
+			return
+		}
+		if remove {
+			s.heapUpdated = heap.Remove(s.bHeap, b.index) != nil
+		}
+		s.shutdownPending = append(s.shutdownPending, b)
+	}:
 	case <-p.done:
-		return false
+	}
+}
+
+// UpdateBarPriority provides a way to change bar's order position.
+// Zero is highest priority, i.e. bar will be on top.
+func (p *Progress) UpdateBarPriority(b *Bar, priority int) {
+	select {
+	case p.operateState <- func(s *pState) { s.bHeap.update(b, priority) }:
+	case <-p.done:
 	}
 }
 
 // BarCount returns bars count
 func (p *Progress) BarCount() int {
 	result := make(chan int, 1)
-	op := func(c *pConf) {
-		result <- len(c.bars)
-	}
 	select {
-	case p.ops <- op:
+	case p.operateState <- func(s *pState) { result <- s.bHeap.Len() }:
 		return <-result
 	case <-p.done:
 		return 0
 	}
 }
 
-// ShutdownNotify means to be notified when main rendering goroutine quits, usualy after p.Stop() call.
-func (p *Progress) ShutdownNotify(ch chan struct{}) *Progress {
-	return updateConf(p, func(c *pConf) {
-		c.shutdownNotifier = ch
-	})
-}
-
-// Format sets custom format for underlying bar(s), default one is "[=>-]".
-func (p *Progress) Format(format string) *Progress {
-	if utf8.RuneCountInString(format) != numFmtRunes {
-		return p
+// Wait first waits for user provided *sync.WaitGroup, if any, then
+// waits far all bars to complete and finally shutdowns master goroutine.
+// After this method has been called, there is no way to reuse *Progress
+// instance.
+func (p *Progress) Wait() {
+	if p.uwg != nil {
+		p.uwg.Wait()
 	}
-	return updateConf(p, func(c *pConf) {
-		c.format = format
-	})
-}
 
-// Stop shutdowns Progress' goroutine.
-// Should be called only after each bar's work done, i.e. bar has reached its
-// 100 %. It is NOT for cancelation. Use WithContext or WithCancel for
-// cancelation purposes.
-func (p *Progress) Stop() {
+	p.wg.Wait()
+
 	select {
-	case <-p.done:
-		return
-	default:
-		// complete Total unknown bars
-		p.ops <- func(c *pConf) {
-			for _, b := range c.bars {
-				s := b.getState()
-				if !s.completed && !s.aborted {
-					b.Complete()
-				}
-			}
-		}
-		// wait for all bars to quit
-		p.wg.Wait()
-		// stop request
-		p.stopReqCh <- struct{}{}
-		// wait for p.server to quit
+	case p.operateState <- func(s *pState) { s.zeroWait = true }:
 		<-p.done
+	case <-p.done:
 	}
 }
 
-// server monitors underlying channels and renders any progress bars
-func (p *Progress) server(conf pConf) {
+func (s *pState) updateSyncMatrix() {
+	s.pMatrix = make(map[int][]chan int)
+	s.aMatrix = make(map[int][]chan int)
+	for i := 0; i < s.bHeap.Len(); i++ {
+		bar := (*s.bHeap)[i]
+		table := bar.wSyncTable()
+		pRow, aRow := table[0], table[1]
 
-	defer func() {
-		p.conf = conf
-		if conf.shutdownNotifier != nil {
-			close(conf.shutdownNotifier)
+		for i, ch := range pRow {
+			s.pMatrix[i] = append(s.pMatrix[i], ch)
 		}
-		close(p.done)
-	}()
 
-	recoverFn := func(ch chan []byte) {
-		if p := recover(); p != nil {
-			ch <- []byte(fmt.Sprintln(p))
-		}
-		close(ch)
-	}
-
-	for {
-		select {
-		case op := <-p.ops:
-			op(&conf)
-		case <-conf.ticker.C:
-			numBars := len(conf.bars)
-			if numBars == 0 {
-				break
-			}
-
-			if conf.beforeRender != nil {
-				conf.beforeRender(conf.bars)
-			}
-
-			quitWidthSyncCh := make(chan struct{})
-			time.AfterFunc(conf.rr, func() {
-				close(quitWidthSyncCh)
-			})
-
-			b0 := conf.bars[0]
-			prependWs := newWidthSync(quitWidthSyncCh, numBars, b0.NumOfPrependers())
-			appendWs := newWidthSync(quitWidthSyncCh, numBars, b0.NumOfAppenders())
-
-			width, _, _ := cwriter.GetTermSize()
-
-			sequence := make([]<-chan []byte, numBars)
-			for i, b := range conf.bars {
-				sequence[i] = b.render(recoverFn, width, prependWs, appendWs)
-			}
-
-			ch := fanIn(sequence...)
-
-			for buf := range ch {
-				conf.cw.Write(buf)
-			}
-
-			conf.cw.Flush()
-
-			for _, b := range conf.bars {
-				b.flushed()
-			}
-		case <-conf.cancel:
-			conf.ticker.Stop()
-			conf.cancel = nil
-		case <-p.stopReqCh:
-			conf.ticker.Stop()
-			return
+		for i, ch := range aRow {
+			s.aMatrix[i] = append(s.aMatrix[i], ch)
 		}
 	}
 }
 
-func newWidthSync(quit <-chan struct{}, numBars, numColumn int) *widthSync {
-	ws := &widthSync{
-		listen: make([]chan int, numColumn),
-		result: make([]chan int, numColumn),
+func (s *pState) render(tw int) {
+	if s.heapUpdated {
+		s.updateSyncMatrix()
+		s.heapUpdated = false
 	}
-	for i := 0; i < numColumn; i++ {
-		ws.listen[i] = make(chan int, numBars)
-		ws.result[i] = make(chan int, numBars)
+	syncWidth(s.pMatrix)
+	syncWidth(s.aMatrix)
+
+	for i := 0; i < s.bHeap.Len(); i++ {
+		bar := (*s.bHeap)[i]
+		go bar.render(s.debugOut, tw)
 	}
-	for i := 0; i < numColumn; i++ {
-		go func(listenCh <-chan int, resultCh chan<- int) {
-			defer close(resultCh)
-			widths := make([]int, 0, numBars)
-		loop:
-			for {
-				select {
-				case w := <-listenCh:
-					widths = append(widths, w)
-					if len(widths) == numBars {
-						break loop
-					}
-				case <-quit:
-					if len(widths) == 0 {
-						return
-					}
-					break loop
+
+	if err := s.flush(s.bHeap.Len()); err != nil {
+		fmt.Fprintf(s.debugOut, "%s %s %v\n", "[mpb]", time.Now(), err)
+	}
+}
+
+func (s *pState) flush(lineCount int) error {
+	for s.bHeap.Len() > 0 {
+		bar := heap.Pop(s.bHeap).(*Bar)
+		frameReader := <-bar.frameReaderCh
+		defer func() {
+			if frameReader.toShutdown {
+				// shutdown at next flush, in other words decrement underlying WaitGroup
+				// only after the bar with completed state has been flushed. this
+				// ensures no bar ends up with less than 100% rendered.
+				s.shutdownPending = append(s.shutdownPending, bar)
+				if replacementBar, ok := s.waitBars[bar]; ok {
+					heap.Push(s.bHeap, replacementBar)
+					s.heapUpdated = true
+					delete(s.waitBars, bar)
+				}
+				if frameReader.removeOnComplete {
+					s.heapUpdated = true
+					return
 				}
 			}
-			result := max(widths)
-			for i := 0; i < len(widths); i++ {
-				resultCh <- result
+			heap.Push(s.bHeap, bar)
+		}()
+		s.cw.ReadFrom(frameReader)
+		lineCount += frameReader.extendedLines
+	}
+
+	for i := len(s.shutdownPending) - 1; i >= 0; i-- {
+		close(s.shutdownPending[i].shutdown)
+		s.shutdownPending = s.shutdownPending[:i]
+	}
+
+	return s.cw.Flush(lineCount)
+}
+
+func syncWidth(matrix map[int][]chan int) {
+	for _, column := range matrix {
+		column := column
+		go func() {
+			var maxWidth int
+			for _, ch := range column {
+				w := <-ch
+				if w > maxWidth {
+					maxWidth = w
+				}
 			}
-		}(ws.listen[i], ws.result[i])
+			for _, ch := range column {
+				ch <- maxWidth
+			}
+		}()
 	}
-	return ws
-}
-
-func fanIn(inputs ...<-chan []byte) <-chan []byte {
-	ch := make(chan []byte)
-
-	go func() {
-		defer close(ch)
-		for _, input := range inputs {
-			ch <- <-input
-		}
-	}()
-
-	return ch
-}
-
-func updateConf(p *Progress, op func(*pConf)) *Progress {
-	select {
-	case p.ops <- op:
-		return p
-	case <-p.done:
-		return nil
-	}
-}
-
-func max(slice []int) int {
-	max := slice[0]
-
-	for i := 1; i < len(slice); i++ {
-		if slice[i] > max {
-			max = slice[i]
-		}
-	}
-
-	return max
 }

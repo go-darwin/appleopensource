@@ -108,7 +108,7 @@ func TestProject_Tarball(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Project{
+			p := &Product{
 				Name:       tt.fields.Name,
 				Version:    tt.fields.Version,
 				Updated:    tt.fields.Updated,
@@ -144,7 +144,7 @@ func TestProject_Source(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Project{
+			p := &Product{
 				Name:       tt.fields.Name,
 				Version:    tt.fields.Version,
 				Updated:    tt.fields.Updated,

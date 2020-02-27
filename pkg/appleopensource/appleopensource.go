@@ -136,8 +136,8 @@ func IndexRelease(platform Platform, version string) ([]byte, error) {
 	return index(&u)
 }
 
-// Project represents a Apple open source project.
-type Project struct {
+// Product represents a Apple open source project.
+type Product struct {
 	Name       string
 	Version    string
 	Updated    bool // for release only
@@ -145,17 +145,17 @@ type Project struct {
 }
 
 // Tarball return the tarballs resource download uri.
-func (p *Project) Tarball() string {
+func (p *Product) Tarball() string {
 	return rooturi + path.Join(TarballsResource.String(), p.Name, fmt.Sprintf("%s-%s.tar.gz", p.Name, p.Version))
 }
 
 // Source return the source resource page uri.
-func (p *Project) Source() string {
+func (p *Product) Source() string {
 	return rooturi + path.Join(SourceResource.String(), p.Name, fmt.Sprintf("%s-%s", p.Name, p.Version))
 }
 
 // ListProject parses the project list HTML DOM, and return the project list.
-func ListProject(buf []byte) ([]Project, error) {
+func ListProject(buf []byte) ([]Product, error) {
 	dom, err := goquery.NewDocumentFromReader(bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
@@ -164,7 +164,7 @@ func ListProject(buf []byte) ([]Project, error) {
 	projects := dom.Find("table > tbody > tr")
 
 	// Subtracts the number of <th>, <hr> and "Parent Directory"
-	list := make([]Project, projects.Length()-4)
+	list := make([]Product, projects.Length()-4)
 
 	projects.Each(func(i int, s *goquery.Selection) {
 		if name := s.Find("td > a").Text(); name != "" && name[len(name)-1] == byte('/') {
@@ -233,7 +233,7 @@ func trimZeros(version string) string {
 const ComingSoon = "(coming soon!)"
 
 // ListRelease parses the release page HTML DOM, and return the Project slice.
-func ListRelease(buf []byte) ([]Project, error) {
+func ListRelease(buf []byte) ([]Product, error) {
 	dom, err := goquery.NewDocumentFromReader(bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
@@ -241,7 +241,7 @@ func ListRelease(buf []byte) ([]Project, error) {
 
 	release := dom.Find("table > tbody > tr")
 
-	projects := make([]Project, release.Length())
+	projects := make([]Product, release.Length())
 
 	release.Each(func(i int, s *goquery.Selection) {
 		// td.project-name is e.g. "xnu-3789.1.32"

@@ -84,6 +84,8 @@ func (l *list) run(ctx context.Context) error {
 		mode = appleopensource.SourceResource
 	case l.source && l.tarballs:
 		return errors.New("-source and -tarballs flags are must be one")
+	default:
+		mode = appleopensource.TarballsResource // defalut is tarballs mode
 	}
 
 	index, err := l.indexList(ctx, mode)

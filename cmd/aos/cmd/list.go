@@ -50,7 +50,7 @@ func (a *aos) newCmdList(ctx context.Context, ioStreams *IOStreams) *cobra.Comma
 
 	f := cmd.Flags()
 	f.BoolVar(&list.source, "source", false, "List the source resources")
-	f.BoolVar(&list.tarballs, "tarballs", false, "List the tarballs resources")
+	f.BoolVar(&list.tarballs, "tarballs", true, "List the tarballs resources")
 
 	return cmd
 }
@@ -83,9 +83,7 @@ func (l *list) run(ctx context.Context) error {
 	case l.tarballs:
 		mode = appleopensource.TarballsResource
 	case l.source && l.tarballs:
-		return errors.New("-source and -tarballs flags are must be one")
-	default:
-		mode = appleopensource.TarballsResource // defalut is tarballs mode
+		return errors.New("--source and --tarballs flags are must be one")
 	}
 
 	index, err := l.indexList(ctx, mode)

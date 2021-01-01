@@ -79,9 +79,9 @@ func (l *list) run(ctx context.Context) error {
 	var mode appleopensource.ResourceType
 	switch {
 	case l.source:
-		mode = appleopensource.TarballsResource
-	case l.tarballs:
 		mode = appleopensource.SourceResource
+	case l.tarballs:
+		mode = appleopensource.TarballsResource
 	case l.source && l.tarballs:
 		return errors.New("-source and -tarballs flags are must be one")
 	default:

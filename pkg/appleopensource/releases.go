@@ -25,7 +25,7 @@ func (p Platform) String() string {
 	case MacOS:
 		return "macos"
 	case Xcode:
-		return "xcode"
+		return "developer-tools"
 	case IOS:
 		return "ios"
 	case Server:

@@ -17,6 +17,7 @@ import (
 	"github.com/blang/semver"
 )
 
+// const rooturi = "https://web.archive.org/web/20190421070850/https://opensource.apple.com/"
 const rooturi = "https://opensource.apple.com/"
 
 var rootURL, _ = url.Parse(rooturi)
@@ -240,7 +241,6 @@ func ListRelease(buf []byte) ([]Product, error) {
 	}
 
 	release := dom.Find("table > tbody > tr")
-
 	projects := make([]Product, release.Length())
 
 	release.Each(func(i int, s *goquery.Selection) {

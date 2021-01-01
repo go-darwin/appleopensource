@@ -19,6 +19,8 @@ import (
 )
 
 type list struct {
+	*aos
+
 	ioStreams *IOStreams
 
 	cacheDir string
@@ -27,17 +29,17 @@ type list struct {
 }
 
 // newCmdList creates the list command.
-func newCmdList(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
+func (a *aos) newCmdList(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
 	list := &list{
+		aos:       a,
 		ioStreams: ioStreams,
 		cacheDir:  filepath.Join(cacheDir(), "list"),
 	}
 
 	cmd := &cobra.Command{
-		Use:     "application",
-		Aliases: []string{"app"},
-		Short:   "manage the Spinnaker applications.",
-		RunE:    func(*cobra.Command, []string) error { return list.run(ctx) },
+		Use:   "list",
+		Short: "List all project available to opensource.apple.com.",
+		RunE:  func(*cobra.Command, []string) error { return list.run(ctx) },
 	}
 
 	f := cmd.Flags()
@@ -51,8 +53,7 @@ func newCmdList(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
 func (l *list) indexList(ctx context.Context, typ appleopensource.ResourceType) ([]byte, error) {
 	fname := filepath.Join(l.cacheDir, fmt.Sprintf("%s.html", typ))
 
-	// if _, err := os.Stat(fname); err == nil && !noCache {
-	if _, err := os.Stat(fname); err == nil {
+	if _, err := os.Stat(fname); err == nil && !l.noCache {
 		return ioutil.ReadFile(fname)
 	}
 

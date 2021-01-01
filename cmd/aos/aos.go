@@ -15,8 +15,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	c := cmd.NewCommand(ctx, os.Args[1:])
-	if err := c.Execute(); err != nil {
+	if err := cmd.NewCommand(ctx, os.Args[1:]).Execute(); err != nil {
 		os.Exit(1)
 	}
 }

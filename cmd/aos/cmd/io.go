@@ -10,8 +10,9 @@ import (
 	"io/ioutil"
 )
 
-// IOStreams provides the standard names for iostreams.  This is useful for embedding and for unit testing.
-// Inconsistent and different names make it hard to read and review code
+// IOStreams provides the standard names for iostreams.
+//
+// This is useful for embedding and for unit testing.
 type IOStreams struct {
 	// In think, os.Stdin
 	In io.Reader

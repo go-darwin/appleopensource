@@ -21,17 +21,18 @@ import (
 )
 
 type release struct {
+	*aos
+
 	ioStreams *IOStreams
 
 	version string
 	quiet   bool
 }
 
-var releaseCachedir = filepath.Join(cacheDir(), "release")
-
 // newCmdList creates the release command.
-func newCmdRelease(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
+func (a *aos) newCmdRelease(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
 	release := &release{
+		aos:       a,
 		ioStreams: ioStreams,
 	}
 
@@ -40,7 +41,6 @@ func newCmdRelease(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
 		Short: "List all projects included to the releases available to opensource.apple.com.",
 	}
 	f := cmd.Flags()
-	release.version = f.Arg(0)
 	f.BoolVarP(&release.quiet, "quiet", "q", false, "suppress some output")
 
 	cmd.AddCommand(release.cmdMacOS(ctx))
@@ -55,7 +55,8 @@ func (r *release) cmdMacOS(ctx context.Context) *cobra.Command {
 	return &cobra.Command{
 		Use:   "macos",
 		Short: "macOS release",
-		RunE: func(*cobra.Command, []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
+			r.version = args[0]
 			return r.runRelease(ctx, appleopensource.MacOS, r.version)
 		},
 	}
@@ -65,7 +66,8 @@ func (r *release) cmdXCode(ctx context.Context) *cobra.Command {
 	return &cobra.Command{
 		Use:   "xcode",
 		Short: "Developer Tool(Xcode) release",
-		RunE: func(*cobra.Command, []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
+			r.version = args[0]
 			return r.runRelease(ctx, appleopensource.Xcode, r.version)
 		},
 	}
@@ -75,7 +77,8 @@ func (r *release) cmdIOS(ctx context.Context) *cobra.Command {
 	return &cobra.Command{
 		Use:   "ios",
 		Short: "iOS release",
-		RunE: func(*cobra.Command, []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
+			r.version = args[0]
 			return r.runRelease(ctx, appleopensource.IOS, r.version)
 		},
 	}
@@ -85,16 +88,25 @@ func (r *release) cmdServer(ctx context.Context) *cobra.Command {
 	return &cobra.Command{
 		Use:   "server",
 		Short: "macOS Server release",
-		RunE: func(*cobra.Command, []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
+			r.version = args[0]
 			return r.runRelease(ctx, appleopensource.Server, r.version)
 		},
 	}
 }
 
 func (r *release) indexRelease(ctx context.Context, platform appleopensource.Platform, version string) ([]byte, error) {
-	fname := filepath.Join(releaseCachedir, fmt.Sprintf("%s_%s.html", platform, strings.Replace(version, ".", "", -1)))
-	// if _, err := os.Stat(fname); err == nil && !noCache {
-	if _, err := os.Stat(fname); err == nil {
+	var releaseCachedir = filepath.Join(cacheDir(), "release")
+
+	if _, err := os.Stat(releaseCachedir); err != nil && os.IsNotExist(err) {
+		if err := os.MkdirAll(releaseCachedir, 0700); err != nil {
+			return nil, err
+		}
+	}
+
+	fname := filepath.Join(releaseCachedir, fmt.Sprintf("%s-%s.html", platform, strings.Replace(version, ".", "", -1)))
+
+	if _, err := os.Stat(fname); err == nil && !r.noCache {
 		return ioutil.ReadFile(fname)
 	}
 

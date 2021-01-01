@@ -28,7 +28,7 @@ type cache struct {
 }
 
 // newCmdCache creates the cache command.
-func newCmdCache(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
+func (a *aos) newCmdCache(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
 	cache := &cache{
 		ioStreams: ioStreams,
 	}

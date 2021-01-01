@@ -29,14 +29,18 @@ var (
 	AppName = filepath.Base(os.Args[0])
 )
 
-// Options represents a root command options.
-type Options struct {
+// aos represents a root command options.
+type aos struct {
+	noCache    bool
 	debug      bool
 	configPath string
+
+	ioStreams *IOStreams
 }
 
 // NewCommand creates the aos root command.
 func NewCommand(ctx context.Context, args []string) *cobra.Command {
+	a := &aos{}
 	cmd := &cobra.Command{
 		Use:                AppName,
 		Short:              "An opensource.apple.com resource management tool.",
@@ -48,19 +52,20 @@ func NewCommand(ctx context.Context, args []string) *cobra.Command {
 	cmd.Flags().BoolP("version", "v", false, "Show "+AppName+" version.") // version flag is root only
 
 	f := cmd.PersistentFlags()
-	opts := &Options{}
-	addGlobalFlags(f, opts)
+	addGlobalFlags(f, a)
 	f.Parse(args)
 
-	ioStreams := &IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
-	cmd.SetIn(ioStreams.In)
-	cmd.SetOut(ioStreams.Out)
-	cmd.SetErr(ioStreams.ErrOut)
+	a.ioStreams = &IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr}
+	cmd.SetIn(a.ioStreams.In)
+	cmd.SetOut(a.ioStreams.Out)
+	cmd.SetErr(a.ioStreams.ErrOut)
 
-	cmd.AddCommand(newCmdCache(ctx, ioStreams))
-	cmd.AddCommand(newCmdFetch(ctx, ioStreams))
-	cmd.AddCommand(newCmdList(ctx, ioStreams))
-	cmd.AddCommand(newCmdVersions(ctx, ioStreams))
+	cmd.AddCommand(a.newCmdCache(ctx, a.ioStreams))
+	cmd.AddCommand(a.newCmdFetch(ctx, a.ioStreams))
+	cmd.AddCommand(a.newCmdList(ctx, a.ioStreams))
+	cmd.AddCommand(a.newCmdRelease(ctx, a.ioStreams))
+	cmd.AddCommand(a.newCmdVersions(ctx, a.ioStreams))
+	cmd.AddCommand(a.newCompletion(ctx, a.ioStreams))
 
 	return cmd
 }

@@ -8,9 +8,10 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func addGlobalFlags(flags *pflag.FlagSet, opts *Options) {
-	flags.BoolVarP(&opts.debug, "debug", "d", false, "Use debug output")
-	flags.StringVarP(&opts.configPath, "config", "c", "", "config file path")
+func addGlobalFlags(flags *pflag.FlagSet, a *aos) {
+	flags.BoolVar(&a.noCache, "no-cache", false, "Do not use cache")
+	flags.BoolVarP(&a.debug, "debug", "d", false, "Use debug output")
+	flags.StringVarP(&a.configPath, "config", "c", "", "config file path")
 
 	addProfilingFlags(flags)
 }

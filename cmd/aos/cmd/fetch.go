@@ -21,7 +21,7 @@ type fetch struct {
 }
 
 // newCmdList creates the list command.
-func newCmdFetch(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
+func (a *aos) newCmdFetch(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
 	fetch := &fetch{
 		ioStreams: ioStreams,
 	}
@@ -35,7 +35,7 @@ func newCmdFetch(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
 			}
 
 			fetch.product = args[0]
-			fetch.versions = args[:len(args)-1]
+			fetch.versions = args[1 : len(args)-1]
 			fetch.dist = args[len(args)-1]
 			return fetch.run(ctx)
 		},
@@ -54,5 +54,5 @@ func (f *fetch) run(ctx context.Context) error {
 		list[i] = p.Tarball()
 	}
 
-	return appleopensource.Fetch(f.dist, list...)
+	return appleopensource.Fetch(ctx, f.dist, list...)
 }

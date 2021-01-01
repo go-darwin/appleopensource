@@ -19,6 +19,8 @@ import (
 )
 
 type versions struct {
+	*aos
+
 	ioStreams *IOStreams
 
 	product  string
@@ -27,21 +29,22 @@ type versions struct {
 }
 
 // newCmdVersions creates the versions command.
-func newCmdVersions(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
+func (a *aos) newCmdVersions(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
 	versions := &versions{
+		aos:       a,
 		ioStreams: ioStreams,
 	}
 
 	cmd := &cobra.Command{
 		Use:   "versions product",
 		Short: "List all versions of the product.",
-		RunE: func(*cobra.Command, []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
+			versions.product = args[0]
 			return versions.runVersions(ctx)
 		},
 	}
 
 	f := cmd.Flags()
-	versions.product = f.Arg(0)
 	f.BoolVarP(&versions.source, "source", "s", false, "List the source resources type cache")
 	f.BoolVarP(&versions.tarballs, "tarballs", "t", false, "List the tarballs resources type cache")
 
@@ -52,7 +55,7 @@ func newCmdVersions(ctx context.Context, ioStreams *IOStreams) *cobra.Command {
 func (v *versions) indexVersion(project string, typ appleopensource.ResourceType) ([]byte, error) {
 	versionsCachedir := filepath.Join(cacheDir(), typ.String())
 
-	if fi, err := os.Stat(versionsCachedir); err == nil && fi.IsDir() {
+	if _, err := os.Stat(versionsCachedir); err != nil && os.IsNotExist(err) {
 		if err := os.MkdirAll(versionsCachedir, 0700); err != nil {
 			return nil, err
 		}
@@ -60,8 +63,7 @@ func (v *versions) indexVersion(project string, typ appleopensource.ResourceType
 
 	fname := filepath.Join(versionsCachedir, fmt.Sprintf("%s.html", project))
 
-	// if _, err := os.Stat(fname); err == nil && !noCache {
-	if _, err := os.Stat(fname); err == nil {
+	if _, err := os.Stat(fname); err == nil && !v.noCache {
 		return ioutil.ReadFile(fname)
 	}
 
@@ -77,10 +79,10 @@ func (v *versions) indexVersion(project string, typ appleopensource.ResourceType
 }
 
 func (v *versions) runVersions(ctx context.Context) error {
-	var mode appleopensource.ResourceType
+	mode := appleopensource.TarballsResource
 	switch {
 	case v.tarballs:
-		mode = appleopensource.TarballsResource
+		// nothing to do
 	case v.source:
 		mode = appleopensource.SourceResource
 	case v.tarballs && v.source:

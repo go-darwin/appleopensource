@@ -39,7 +39,13 @@ func (a *aos) newCmdList(ctx context.Context, ioStreams *IOStreams) *cobra.Comma
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all project available to opensource.apple.com.",
-		RunE:  func(*cobra.Command, []string) error { return list.run(ctx) },
+		PreRunE: func(*cobra.Command, []string) error {
+			if _, err := os.Stat(list.cacheDir); err != nil && errors.Is(err, os.ErrNotExist) {
+				return os.MkdirAll(list.cacheDir, 0755)
+			}
+			return nil
+		},
+		RunE: func(*cobra.Command, []string) error { return list.run(ctx) },
 	}
 
 	f := cmd.Flags()

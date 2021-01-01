@@ -55,7 +55,7 @@ func (a *aos) newCmdVersions(ctx context.Context, ioStreams *IOStreams) *cobra.C
 func (v *versions) indexVersion(project string, typ appleopensource.ResourceType) ([]byte, error) {
 	versionsCachedir := filepath.Join(cacheDir(), typ.String())
 
-	if _, err := os.Stat(versionsCachedir); err != nil && os.IsNotExist(err) {
+	if _, err := os.Stat(versionsCachedir); err != nil && errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(versionsCachedir, 0700); err != nil {
 			return nil, err
 		}

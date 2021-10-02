@@ -14,8 +14,8 @@ import (
 )
 
 var tests = []struct {
-	in  string
-	out string
+	in  semver.Version
+	out semver.Version
 }{
 	{"bad", ""},
 	{"1-alpha.beta.gamma", ""},
@@ -72,8 +72,8 @@ func TestCanonical(t *testing.T) {
 func TestMajor(t *testing.T) {
 	for _, tt := range tests {
 		out := semver.Major(tt.in)
-		want := ""
-		if i := strings.Index(tt.out, "."); i >= 0 {
+		var want semver.Version
+		if i := strings.Index(string(tt.out), "."); i >= 0 {
 			want = tt.out[:i]
 		}
 		if out != want {
@@ -85,22 +85,22 @@ func TestMajor(t *testing.T) {
 func TestMajorMinor(t *testing.T) {
 	for _, tt := range tests {
 		out := semver.MajorMinor(tt.in)
-		var want string
+		var want semver.Version
 		if tt.out != "" {
 			want = tt.in
-			if i := strings.Index(want, "+"); i >= 0 {
+			if i := strings.Index(string(want), "+"); i >= 0 {
 				want = want[:i]
 			}
-			if i := strings.Index(want, "-"); i >= 0 {
+			if i := strings.Index(string(want), "-"); i >= 0 {
 				want = want[:i]
 			}
-			switch strings.Count(want, ".") {
+			switch strings.Count(string(want), ".") {
 			case 0:
 				want += ".0"
 			case 1:
 				// ok
 			case 2:
-				want = want[:strings.LastIndex(want, ".")]
+				want = want[:strings.LastIndex(string(want), ".")]
 			}
 		}
 		if out != want {
@@ -112,9 +112,9 @@ func TestMajorMinor(t *testing.T) {
 func TestPrerelease(t *testing.T) {
 	for _, tt := range tests {
 		pre := semver.Prerelease(tt.in)
-		var want string
+		var want semver.Version
 		if tt.out != "" {
-			if i := strings.Index(tt.out, "-"); i >= 0 {
+			if i := strings.Index(string(tt.out), "-"); i >= 0 {
 				want = tt.out[i:]
 			}
 		}
@@ -127,9 +127,9 @@ func TestPrerelease(t *testing.T) {
 func TestBuild(t *testing.T) {
 	for _, tt := range tests {
 		build := semver.Build(tt.in)
-		var want string
+		var want semver.Version
 		if tt.out != "" {
-			if i := strings.Index(tt.in, "+"); i >= 0 {
+			if i := strings.Index(string(tt.in), "+"); i >= 0 {
 				want = tt.in[i:]
 			}
 		}
@@ -159,20 +159,56 @@ func TestCompare(t *testing.T) {
 }
 
 func TestSort(t *testing.T) {
-	versions := make([]string, len(tests))
+	versions := make([]semver.Version, len(tests))
 	for i, test := range tests {
 		versions[i] = test.in
 	}
 	rand.Shuffle(len(versions), func(i, j int) { versions[i], versions[j] = versions[j], versions[i] })
 	semver.Sort(versions)
 	if !sort.IsSorted(semver.ByVersion(versions)) {
-		t.Errorf("list is not sorted:\n%s", strings.Join(versions, "\n"))
+		t.Errorf("list is not sorted:\n%s", join(versions, "\n"))
+	}
+}
+
+func join(elems []semver.Version, sep string) string {
+	switch len(elems) {
+	case 0:
+		return ""
+	case 1:
+		return string(elems[0])
+	}
+	n := len(sep) * (len(elems) - 1)
+	for i := 0; i < len(elems); i++ {
+		n += len(elems[i])
+	}
+
+	var b strings.Builder
+	b.Grow(n)
+	b.WriteString(string(elems[0]))
+	for _, s := range elems[1:] {
+		b.WriteString(sep)
+		b.WriteString(string(s))
+	}
+	return b.String()
+}
+
+func BenchmarkSort(b *testing.B) {
+	versions := make([]semver.Version, len(tests))
+	for i, test := range tests {
+		versions[i] = test.in
+	}
+	rand.Shuffle(len(versions), func(i, j int) { versions[i], versions[j] = versions[j], versions[i] })
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		v := &versions
+		semver.Sort(*v)
 	}
 }
 
 var (
-	v1 = "1.0.0+metadata-dash"
-	v2 = "1.0.0+metadata-dash1"
+	v1 = semver.Version("1.0.0+metadata-dash")
+	v2 = semver.Version("1.0.0+metadata-dash1")
 )
 
 func BenchmarkCompare(b *testing.B) {

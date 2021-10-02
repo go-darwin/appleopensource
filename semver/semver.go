@@ -21,19 +21,22 @@ package semver
 
 import "sort"
 
+// Version represents a version string.
+type Version string
+
 // parsed returns the parsed form of a semantic version string.
 type parsed struct {
-	major      string
-	minor      string
-	patch      string
-	short      string
-	prerelease string
-	build      string
+	major      Version
+	minor      Version
+	patch      Version
+	short      Version
+	prerelease Version
+	build      Version
 	err        string
 }
 
 // IsValid reports whether v is a valid semantic version string.
-func IsValid(v string) bool {
+func IsValid(v Version) bool {
 	_, ok := parse(v)
 	return ok
 }
@@ -43,7 +46,7 @@ func IsValid(v string) bool {
 // Two semantic versions compare equal only if their canonical formattings
 // are identical strings.
 // The canonical invalid semantic version is the empty string.
-func Canonical(v string) string {
+func Canonical(v Version) Version {
 	p, ok := parse(v)
 	if !ok {
 		return ""
@@ -60,7 +63,7 @@ func Canonical(v string) string {
 // Major returns the major version prefix of the semantic version v.
 // For example, Major("2.1.0") == "2".
 // If v is an invalid semantic version string, Major returns the empty string.
-func Major(v string) string {
+func Major(v Version) Version {
 	pv, ok := parse(v)
 	if !ok {
 		return ""
@@ -71,7 +74,7 @@ func Major(v string) string {
 // MajorMinor returns the major.minor version prefix of the semantic version v.
 // For example, MajorMinor("2.1.0") == "2.1".
 // If v is an invalid semantic version string, MajorMinor returns the empty string.
-func MajorMinor(v string) string {
+func MajorMinor(v Version) Version {
 	pv, ok := parse(v)
 	if !ok {
 		return ""
@@ -86,7 +89,7 @@ func MajorMinor(v string) string {
 // Prerelease returns the prerelease suffix of the semantic version v.
 // For example, Prerelease("2.1.0-pre+meta") == "-pre".
 // If v is an invalid semantic version string, Prerelease returns the empty string.
-func Prerelease(v string) string {
+func Prerelease(v Version) Version {
 	pv, ok := parse(v)
 	if !ok {
 		return ""
@@ -97,7 +100,7 @@ func Prerelease(v string) string {
 // Build returns the build suffix of the semantic version v.
 // For example, Build("2.1.0+meta") == "+meta".
 // If v is an invalid semantic version string, Build returns the empty string.
-func Build(v string) string {
+func Build(v Version) Version {
 	pv, ok := parse(v)
 	if !ok {
 		return ""
@@ -111,7 +114,7 @@ func Build(v string) string {
 //
 // An invalid semantic version string is considered less than a valid one.
 // All invalid semantic version strings compare equal to each other.
-func Compare(v, w string) int {
+func Compare(v, w Version) int {
 	pv, ok1 := parse(v)
 	pw, ok2 := parse(w)
 	if !ok1 && !ok2 {
@@ -136,7 +139,7 @@ func Compare(v, w string) int {
 }
 
 // ByVersion implements sort.Interface for sorting semantic version strings.
-type ByVersion []string
+type ByVersion []Version
 
 func (vs ByVersion) Len() int      { return len(vs) }
 func (vs ByVersion) Swap(i, j int) { vs[i], vs[j] = vs[j], vs[i] }
@@ -149,11 +152,11 @@ func (vs ByVersion) Less(i, j int) bool {
 }
 
 // Sort sorts a list of semantic version strings using ByVersion.
-func Sort(list []string) {
+func Sort(list []Version) {
 	sort.Sort(ByVersion(list))
 }
 
-func parse(v string) (p parsed, ok bool) {
+func parse(v Version) (p parsed, ok bool) {
 	if v == "" {
 		p.err = "v is empty"
 		return
@@ -217,7 +220,7 @@ func parse(v string) (p parsed, ok bool) {
 	return
 }
 
-func parseInt(v string) (t, rest string, ok bool) {
+func parseInt(v Version) (t, rest Version, ok bool) {
 	if v == "" {
 		return
 	}
@@ -234,7 +237,7 @@ func parseInt(v string) (t, rest string, ok bool) {
 	return v[:i], v[i:], true
 }
 
-func parsePrerelease(v string) (t, rest string, ok bool) {
+func parsePrerelease(v Version) (t, rest Version, ok bool) {
 	// "A pre-release version MAY be denoted by appending a hyphen and
 	// a series of dot separated identifiers immediately following the patch version.
 	// Identifiers MUST comprise only ASCII alphanumerics and hyphen [0-9A-Za-z-].
@@ -262,7 +265,7 @@ func parsePrerelease(v string) (t, rest string, ok bool) {
 	return v[:i], v[i:], true
 }
 
-func parseBuild(v string) (t, rest string, ok bool) {
+func parseBuild(v Version) (t, rest Version, ok bool) {
 	if v == "" || v[0] != '+' {
 		return
 	}
@@ -290,7 +293,7 @@ func isIdentChar(c byte) bool {
 	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '-'
 }
 
-func isBadNum(v string) bool {
+func isBadNum(v Version) bool {
 	i := 0
 	for i < len(v) && '0' <= v[i] && v[i] <= '9' {
 		i++
@@ -298,7 +301,7 @@ func isBadNum(v string) bool {
 	return i == len(v) && i > 1 && v[0] == '0'
 }
 
-func isNum(v string) bool {
+func isNum(v Version) bool {
 	i := 0
 	for i < len(v) && '0' <= v[i] && v[i] <= '9' {
 		i++
@@ -306,7 +309,7 @@ func isNum(v string) bool {
 	return i == len(v)
 }
 
-func compareInt(x, y string) int {
+func compareInt(x, y Version) int {
 	if x == y {
 		return 0
 	}
@@ -323,7 +326,7 @@ func compareInt(x, y string) int {
 	}
 }
 
-func comparePrerelease(x, y string) int {
+func comparePrerelease(x, y Version) int {
 	// "When major, minor, and patch are equal, a pre-release version has
 	// lower precedence than a normal version.
 	// Example: 1.0.0-alpha < 1.0.0.
@@ -350,7 +353,7 @@ func comparePrerelease(x, y string) int {
 	for x != "" && y != "" {
 		x = x[1:] // skip - or .
 		y = y[1:] // skip - or .
-		var dx, dy string
+		var dx, dy Version
 		dx, x = nextIdent(x)
 		dy, y = nextIdent(y)
 		if dx != dy {
@@ -385,7 +388,7 @@ func comparePrerelease(x, y string) int {
 	}
 }
 
-func nextIdent(x string) (dx, rest string) {
+func nextIdent(x Version) (dx, rest Version) {
 	i := 0
 	for i < len(x) && x[i] != '.' {
 		i++

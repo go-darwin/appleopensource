@@ -1,4 +1,4 @@
-module github.com/zchee/appleopensource
+module go-darwin.dev/appleopensource
 
 go 1.15
 

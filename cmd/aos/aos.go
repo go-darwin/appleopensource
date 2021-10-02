@@ -8,7 +8,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/zchee/appleopensource/cmd/aos/cmd"
+	"go-darwin.dev/appleopensource/cmd/aos/cmd"
 )
 
 func main() {

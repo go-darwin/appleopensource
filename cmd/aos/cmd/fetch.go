@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/zchee/appleopensource/pkg/appleopensource"
+	"go-darwin.dev/appleopensource/pkg/appleopensource"
 )
 
 type fetch struct {

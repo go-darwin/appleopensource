@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/zchee/appleopensource/pkg/appleopensource"
+	"go-darwin.dev/appleopensource/pkg/appleopensource"
 )
 
 type cache struct {
